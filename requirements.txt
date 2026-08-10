@@ -1,6 +1,6 @@
 flask
 requests
 beautifulsoup4
-groq
-gunicorn
 duckduckgo_search
+groq
+google-genai
