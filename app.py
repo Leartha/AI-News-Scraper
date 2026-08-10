@@ -1,12 +1,12 @@
 import os
 import json
 import io
+import urllib.parse
 from flask import Flask, render_template, request, send_file
 import requests
 from bs4 import BeautifulSoup
 from groq import Groq
-from google import genai
-from duckduckgo_search import DDGS
+import google.generativeai as genai
 
 app = Flask(__name__)
 
@@ -21,7 +21,7 @@ def get_groq_client():
             pass
     return Groq(api_key=key) if key else None
 
-def get_gemini_client():
+def setup_gemini():
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
         try:
@@ -29,14 +29,58 @@ def get_gemini_client():
                 key = json.load(f).get("gemini_api_key")
         except Exception:
             pass
-    return genai.Client(api_key=key) if key else None
+    if key:
+        genai.configure(api_key=key)
+        return True
+    return False
 
-# --- HABER ÇEKİCİ ---
+# --- HABER ARAMA (Vercel Uyumlu & Güvenli XML Parsing) ---
+def haber_ara(kelime):
+    haberler = []
+    try:
+        query = urllib.parse.quote(kelime)
+        rss_url = f"https://news.google.com/rss/search?q={query}&hl=tr&gl=TR&ceid=TR:tr"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        response = requests.get(rss_url, headers=headers, timeout=6)
+        
+        # 'html.parser' veya 'xml' çökmesini önlemek için korumalı soup
+        try:
+            soup = BeautifulSoup(response.content, 'xml')
+        except Exception:
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+        items = soup.find_all('item')[:5]
+
+        for item in items:
+            title = item.find('title').get_text() if item.find('title') else 'Başlık Yok'
+            link = item.find('link').get_text() if item.find('link') else ''
+            
+            source_tag = item.find('source')
+            source = source_tag.get_text() if source_tag else 'Haber Kaynağı'
+            
+            pub_date_tag = item.find('pubDate')
+            pub_date = pub_date_tag.get_text()[:16] if pub_date_tag else ''
+
+            if link:
+                haberler.append({
+                    'title': title,
+                    'url': link,
+                    'source': source,
+                    'date': pub_date
+                })
+    except Exception as e:
+        print("Haber arama hatası:", e)
+    return haberler
+
+# --- HABER METNİ ÇEKİCİ ---
 def haber_metni_cek(url):
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        response = requests.get(url, headers=headers, timeout=8, allow_redirects=True)
         soup = BeautifulSoup(response.text, 'html.parser')
 
         baslik = soup.find('h1')
@@ -45,17 +89,18 @@ def haber_metni_cek(url):
         og_image = soup.find('meta', property='og:image')
         gorsel_url = og_image['content'] if og_image and 'content' in og_image.attrs else ""
 
-        for cop in soup(["script", "style", "header", "footer", "nav", "aside"]):
+        for cop in soup(["script", "style", "header", "footer", "nav", "aside", "form"]):
             cop.decompose()
 
         paragraflar = soup.find_all('p')
-        haber_metni = " ".join([p.get_text().strip() for p in paragraflar if len(p.get_text().strip()) > 30])
+        haber_metni = " ".join([p.get_text().strip() for p in paragraflar if len(p.get_text().strip()) > 25])
         
         return baslik_metni, gorsel_url, haber_metni
-    except Exception:
+    except Exception as e:
+        print("Haber çekme hatası:", e)
         return "", "", None
 
-# --- HYBRID (YEDEKLI) ÖZETLEME FONKSİYONU ---
+# --- HYBRID ÖZETLEME ---
 def ozetle_hybrid(metin, format_secimi):
     prompt_haritasi = {
         "maddeli": "Sana verilen haber metnindeki reklam veya detayları yok sayıp, haberin özünü Türkçe olarak maddeler halinde (📌 simgeleriyle) özetle.",
@@ -66,7 +111,7 @@ def ozetle_hybrid(metin, format_secimi):
 
     system_prompt = prompt_haritasi.get(format_secimi, prompt_haritasi["maddeli"])
 
-    # ⚡ 1. DENEME: GROQ (İlk Tercih - Ultra Hızlı)
+    # 1. Groq Denemesi
     try:
         groq_client = get_groq_client()
         if groq_client:
@@ -79,21 +124,18 @@ def ozetle_hybrid(metin, format_secimi):
             )
             return response.choices[0].message.content
     except Exception as e:
-        print(f"Groq Hatası, Gemini'ye geçiliyor: {e}")
+        print("Groq hatası:", e)
 
-    # 🟢 2. DENEME: GEMINI (Yedek Motor - Yüksek Bağlam)
+    # 2. Gemini Denemesi (Yedek)
     try:
-        gemini_client = get_gemini_client()
-        if gemini_client:
-            response = gemini_client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=f"{system_prompt}\n\nAşağıdaki haberi özetle:\n\n{metin}"
-            )
+        if setup_gemini():
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            response = model.generate_content(f"{system_prompt}\n\nAşağıdaki haberi özetle:\n\n{metin}")
             return response.text
     except Exception as e:
-        print(f"Gemini Hatası: {e}")
+        print("Gemini hatası:", e)
 
-    return "Maalesef özetleme servislerine şu an ulaşılamıyor. Lütfen API anahtarlarınızı kontrol edin."
+    return "Özet oluşturulamadı. Lütfen API anahtarlarınızı (GROQ_API_KEY veya GEMINI_API_KEY) Vercel ayarlarından kontrol edin."
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -106,34 +148,21 @@ def index():
     if request.method == 'POST':
         islem_turu = request.form.get('islem_turu')
         
-        # Arama Kısmı
         if islem_turu == 'ara':
             arama_kelimesi = request.form.get('query', '').strip()
             if arama_kelimesi:
-                try:
-                    with DDGS() as ddgs:
-                        results = list(ddgs.news(keywords=arama_kelimesi, region="tr-tr", max_results=5))
-                        for item in results:
-                            haberler.append({
-                                'title': item.get('title'),
-                                'url': item.get('url'),
-                                'source': item.get('source'),
-                                'date': item.get('date', '')[:10]
-                            })
-                except Exception as e:
-                    print("Arama hatası:", e)
+                haberler = haber_ara(arama_kelimesi)
 
-        # Özetleme Kısmı
         elif islem_turu == 'ozetle':
             url = request.form.get('url', '').strip()
             format_secimi = request.form.get('format', 'maddeli')
             
             if url:
                 baslik, gorsel_url, metin = haber_metni_cek(url)
-                if metin and len(metin) > 100:
+                if metin and len(metin) > 50:
                     ozet = ozetle_hybrid(metin, format_secimi)
                 else:
-                    ozet = "Haber içeriği çekilemedi veya metin çok kısa."
+                    ozet = "Haber içeriği çekilemedi veya metin çok kısa. Lütfen başka bir haber linki deneyin."
 
     return render_template('index.html', ozet=ozet, baslik=baslik, gorsel_url=gorsel_url, haberler=haberler, arama_kelimesi=arama_kelimesi)
 
