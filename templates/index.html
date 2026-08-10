@@ -185,7 +185,7 @@
             if (!globalAudio.paused) {
                 globalAudio.pause();
                 globalAudio.currentTime = 0;
-                btn.innerHTML = "🎙️ Dinle (AI Kadın Sesi)";
+                btn.innerHTML = "🎙️ Dinle";
                 btn.classList.remove("text-red-400");
                 btn.classList.add("text-blue-400");
                 return;
@@ -220,7 +220,7 @@
                 btn.classList.add("text-red-400");
 
                 globalAudio.onended = function() {
-                    btn.innerHTML = "🎙️ Dinle (AI Kadın Sesi)";
+                    btn.innerHTML = "🎙️ Dinle";
                     btn.classList.remove("text-red-400");
                     btn.classList.add("text-blue-400");
                 };
@@ -229,7 +229,7 @@
                 console.error(err);
                 alert("Ses oluşturulurken bir hata oluştu.");
                 btn.disabled = false;
-                btn.innerHTML = "🎙️ Dinle (AI Kadın Sesi)";
+                btn.innerHTML = "🎙️ Dinle";
             }
         }
     </script>
