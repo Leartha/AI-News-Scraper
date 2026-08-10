@@ -187,5 +187,7 @@ def indir():
         mimetype="text/plain"
     )
 
+app = app  # Vercel WSGI dışa aktarımı için
+
 if __name__ == '__main__':
     app.run(debug=True)
