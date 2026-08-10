@@ -8,6 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 from groq import Groq
 import google.generativeai as genai
+from gtts import gTTS
 
 app = Flask(__name__)
 
@@ -35,7 +36,7 @@ def setup_gemini():
         return True
     return False
 
-# --- HABER ARAMA (Bing News RSS - %100 Orijinal Link Garantili) ---
+# --- HABER ARAMA (Bing News RSS) ---
 def haber_ara(kelime):
     haberler = []
     if not kelime:
@@ -43,10 +44,9 @@ def haber_ara(kelime):
         
     try:
         query = urllib.parse.quote(kelime)
-        # Bing News RSS: Doğrudan kaynak URL'si verir, yönlendirme tuzaklarına takılmaz.
         rss_url = f"https://www.bing.com/news/search?q={query}&format=rss&cc=tr"
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
         response = requests.get(rss_url, headers=headers, timeout=5)
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -66,7 +66,6 @@ def haber_ara(kelime):
 
             pub_date = pub_date_tag.get_text()[:16] if pub_date_tag else ''
 
-            # Alan adından (domain) kaynak adını çıkar
             source = 'Haber Kaynağı'
             if link:
                 domain_match = re.search(r'https?://(?:www\.)?([^/]+)', link)
@@ -88,7 +87,7 @@ def haber_ara(kelime):
 def haber_metni_cek(url):
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
             'Referer': 'https://www.google.com/'
         }
@@ -96,24 +95,19 @@ def haber_metni_cek(url):
         response = requests.get(url, headers=headers, timeout=7, allow_redirects=True)
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Başlık
         baslik = soup.find('h1')
         baslik_metni = baslik.get_text().strip() if baslik else ""
 
-        # Görsel
         og_image = soup.find('meta', property='og:image') or soup.find('meta', attrs={'name': 'twitter:image'})
         gorsel_url = og_image['content'] if og_image and 'content' in og_image.attrs else ""
 
-        # Temizlik
         for cop in soup(["script", "style", "header", "footer", "nav", "aside", "form", "iframe", "noscript"]):
             cop.decompose()
 
-        # Paragraflardan metin çıkar
         paragraflar = soup.find_all('p')
         metin_parcalari = [p.get_text().strip() for p in paragraflar if len(p.get_text().strip()) > 25]
         haber_metni = " ".join(metin_parcalari)
 
-        # Alternatif: Eğer p etiketlerinden yeterli metin çıkmazsa article/content div'lerine bak
         if len(haber_metni) < 100:
             article = soup.find('article') or soup.find('div', class_=re.compile(r'content|article|detail|news|post-body', re.I))
             if article:
@@ -135,7 +129,6 @@ def ozetle_hybrid(metin, format_secimi):
 
     system_prompt = prompt_haritasi.get(format_secimi, prompt_haritasi["maddeli"])
 
-    # 1. Groq Denemesi
     try:
         groq_client = get_groq_client()
         if groq_client:
@@ -151,7 +144,6 @@ def ozetle_hybrid(metin, format_secimi):
     except Exception as e:
         print("Groq hatası:", e)
 
-    # 2. Gemini Denemesi (Yedek)
     try:
         if setup_gemini():
             model = genai.GenerativeModel('gemini-1.5-flash')
@@ -160,7 +152,7 @@ def ozetle_hybrid(metin, format_secimi):
     except Exception as e:
         print("Gemini hatası:", e)
 
-    return "Özet oluşturulamadı. Lütfen API anahtarlarınızı (GROQ_API_KEY veya GEMINI_API_KEY) Vercel ayarlarından kontrol edin."
+    return "Özet oluşturulamadı. Lütfen API anahtarlarınızı Vercel ayarlarından kontrol edin."
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -189,6 +181,34 @@ def index():
                     ozet = "Haber içeriği çekilemedi veya metin çok kısa. Lütfen başka bir haber linki deneyin."
 
     return render_template('index.html', ozet=ozet, baslik=baslik, gorsel_url=gorsel_url, haberler=haberler, arama_kelimesi=arama_kelimesi)
+
+# 🎙️ YENİ: GERÇEKÇİ KADIN SESİ (AI MP3 GENERATOR)
+@app.route('/seslendir', methods=['POST'])
+def seslendir_api():
+    try:
+        data = request.get_json()
+        metin = data.get("metin", "")
+
+        # Emojileri temizle
+        metin_temiz = re.sub(r'[^\w\s,.\?!áéíóúâêîôûàèìòùäëïöüÇçĞğİıÖöŞşÜü-]', '', metin)
+
+        if not metin_temiz.strip():
+            return {"error": "Metin bulunamadı"}, 400
+
+        # Google'ın Doğal Türkçe Kadın Sesi ile MP3 üret
+        tts = gTTS(text=metin_temiz, lang='tr', slow=False)
+        fp = io.BytesIO()
+        tts.write_to_fp(fp)
+        fp.seek(0)
+
+        return send_file(
+            fp,
+            mimetype="audio/mpeg",
+            as_attachment=False
+        )
+    except Exception as e:
+        print("Ses hatası:", e)
+        return {"error": str(e)}, 500
 
 @app.route('/indir', methods=['POST'])
 def indir():
