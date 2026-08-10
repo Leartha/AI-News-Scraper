@@ -1,61 +1,99 @@
+import os
+import json
+import io
 from flask import Flask, render_template, request, send_file
 import requests
 from bs4 import BeautifulSoup
-import google.generativeai as genai
-import os
-import io
+from groq import Groq
+from google import genai
 from duckduckgo_search import DDGS
 
 app = Flask(__name__)
 
-# Gemini API Kurulumu
-GENAI_API_KEY = os.environ.get("GEMINI_API_KEY")
-if GENAI_API_KEY:
-    genai.configure(api_key=GENAI_API_KEY)
+# --- API CLIENT ÇEKİCİLERİ ---
+def get_groq_client():
+    key = os.environ.get("GROQ_API_KEY")
+    if not key:
+        try:
+            with open("api_keys.json", "r", encoding="utf-8") as f:
+                key = json.load(f).get("groq_api_key")
+        except Exception:
+            pass
+    return Groq(api_key=key) if key else None
 
+def get_gemini_client():
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
+        try:
+            with open("api_keys.json", "r", encoding="utf-8") as f:
+                key = json.load(f).get("gemini_api_key")
+        except Exception:
+            pass
+    return genai.Client(api_key=key) if key else None
+
+# --- HABER ÇEKİCİ ---
 def haber_metni_cek(url):
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Başlık Al
         baslik = soup.find('h1')
         baslik_metni = baslik.get_text().strip() if baslik else ""
 
-        # Görsel Al
         og_image = soup.find('meta', property='og:image')
         gorsel_url = og_image['content'] if og_image and 'content' in og_image.attrs else ""
 
-        # Metin Paragrafları
+        for cop in soup(["script", "style", "header", "footer", "nav", "aside"]):
+            cop.decompose()
+
         paragraflar = soup.find_all('p')
-        haber_metni = " ".join([p.get_text().strip() for p in paragraflar if len(p.get_text().strip()) > 20])
+        haber_metni = " ".join([p.get_text().strip() for p in paragraflar if len(p.get_text().strip()) > 30])
         
         return baslik_metni, gorsel_url, haber_metni
-    except Exception as e:
+    except Exception:
         return "", "", None
 
-def ozetle_gemini(metin, format_secimi):
-    if not GENAI_API_KEY:
-        return "Hata: GEMINI_API_KEY tanımlanmamış."
-    
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    
+# --- HYBRID (YEDEKLI) ÖZETLEME FONKSİYONU ---
+def ozetle_hybrid(metin, format_secimi):
     prompt_haritasi = {
-        "maddeli": "Aşağıdaki haber metnini Türkçe olarak ana noktalarıyla madde madde (📌 simgeleriyle) özetle:\n\n",
-        "tek_cumle": "Aşağıdaki haber metnini Türkçe olarak tam 1 cümlelik vurucu bir yönetici özeti haline getir:\n\n",
-        "tweet": "Aşağıdaki haberi X/Twitter'da paylaşılacak tonda, ilgi çekici bir Tweet dizisi (1/3, 2/3 gibi) şeklinde yaz:\n\n",
-        "soru_cevap": "Aşağıdaki haberden 3 temel soru çıkar ve bunlara metne göre kısa cevaplar ver (Soru-Cevap formatında):\n\n"
+        "maddeli": "Sana verilen haber metnindeki reklam veya detayları yok sayıp, haberin özünü Türkçe olarak maddeler halinde (📌 simgeleriyle) özetle.",
+        "tek_cumle": "Sana verilen metni sadece tek ve vurucu bir cümle ile Türkçe özetle.",
+        "tweet": "Sana verilen metinden ilgi çekici, bol emojili 3 maddelik bir Tweet/X flood dizisi oluştur.",
+        "soru_cevap": "Sana verilen metinden en önemli 3 soruyu çıkar ve bu soruları metne göre kısaca cevapla. Format: Soru 1: ... / Cevap 1: ..."
     }
 
-    secilen_prompt = prompt_haritasi.get(format_secimi, prompt_haritasi["maddeli"])
+    system_prompt = prompt_haritasi.get(format_secimi, prompt_haritasi["maddeli"])
 
+    # ⚡ 1. DENEME: GROQ (İlk Tercih - Ultra Hızlı)
     try:
-        response = model.generate_content(secilen_prompt + metin)
-        return response.text
+        groq_client = get_groq_client()
+        if groq_client:
+            response = groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Aşağıdaki haberi özetle:\n\n{metin}"}    
+                ]
+            )
+            return response.choices[0].message.content
     except Exception as e:
-        return f"Özetlenirken hata oluştu: {e}"
+        print(f"Groq Hatası, Gemini'ye geçiliyor: {e}")
+
+    # 🟢 2. DENEME: GEMINI (Yedek Motor - Yüksek Bağlam)
+    try:
+        gemini_client = get_gemini_client()
+        if gemini_client:
+            response = gemini_client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=f"{system_prompt}\n\nAşağıdaki haberi özetle:\n\n{metin}"
+            )
+            return response.text
+    except Exception as e:
+        print(f"Gemini Hatası: {e}")
+
+    return "Maalesef özetleme servislerine şu an ulaşılamıyor. Lütfen API anahtarlarınızı kontrol edin."
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -68,13 +106,12 @@ def index():
     if request.method == 'POST':
         islem_turu = request.form.get('islem_turu')
         
-        # 1. DURUM: Arama Çubuğundan Kelime Aratıldıysa
+        # Arama Kısmı
         if islem_turu == 'ara':
             arama_kelimesi = request.form.get('query', '').strip()
             if arama_kelimesi:
                 try:
                     with DDGS() as ddgs:
-                        # Son güncel Türkçe haberleri arat
                         results = list(ddgs.news(keywords=arama_kelimesi, region="tr-tr", max_results=5))
                         for item in results:
                             haberler.append({
@@ -86,7 +123,7 @@ def index():
                 except Exception as e:
                     print("Arama hatası:", e)
 
-        # 2. DURUM: Arama Sonuçlarından Bir Habere "Özetle" Denildiyse VEYA Direkt Link Girildiyse
+        # Özetleme Kısmı
         elif islem_turu == 'ozetle':
             url = request.form.get('url', '').strip()
             format_secimi = request.form.get('format', 'maddeli')
@@ -94,7 +131,7 @@ def index():
             if url:
                 baslik, gorsel_url, metin = haber_metni_cek(url)
                 if metin and len(metin) > 100:
-                    ozet = ozetle_gemini(metin, format_secimi)
+                    ozet = ozetle_hybrid(metin, format_secimi)
                 else:
                     ozet = "Haber içeriği çekilemedi veya metin çok kısa."
 
