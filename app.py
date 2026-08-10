@@ -34,18 +34,20 @@ def setup_gemini():
         return True
     return False
 
-# --- HABER ARAMA (Vercel Uyumlu & Güvenli XML Parsing) ---
+# --- HABER ARAMA (Google RSS - Ultra Güvenli) ---
 def haber_ara(kelime):
     haberler = []
+    if not kelime:
+        return haberler
+        
     try:
         query = urllib.parse.quote(kelime)
         rss_url = f"https://news.google.com/rss/search?q={query}&hl=tr&gl=TR&ceid=TR:tr"
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
-        response = requests.get(rss_url, headers=headers, timeout=6)
+        response = requests.get(rss_url, headers=headers, timeout=5)
         
-        # 'html.parser' veya 'xml' çökmesini önlemek için korumalı soup
         try:
             soup = BeautifulSoup(response.content, 'xml')
         except Exception:
@@ -143,17 +145,18 @@ def index():
     baslik = None
     gorsel_url = None
     haberler = []
-    arama_kelimesi = ""
+    
+    # URL'den arama sorgusunu al (GET metodu - F5 dostu)
+    arama_kelimesi = request.args.get('query', '').strip()
+    
+    if arama_kelimesi:
+        haberler = haber_ara(arama_kelimesi)
 
+    # Özetleme işlemi POST olarak devam eder
     if request.method == 'POST':
         islem_turu = request.form.get('islem_turu')
         
-        if islem_turu == 'ara':
-            arama_kelimesi = request.form.get('query', '').strip()
-            if arama_kelimesi:
-                haberler = haber_ara(arama_kelimesi)
-
-        elif islem_turu == 'ozetle':
+        if islem_turu == 'ozetle':
             url = request.form.get('url', '').strip()
             format_secimi = request.form.get('format', 'maddeli')
             
