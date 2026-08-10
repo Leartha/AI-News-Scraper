@@ -9,6 +9,8 @@ from bs4 import BeautifulSoup
 from groq import Groq
 import google.generativeai as genai
 from gtts import gTTS
+import io
+import re
 
 app = Flask(__name__)
 
@@ -119,44 +121,69 @@ def haber_metni_cek(url):
         return "", "", None
 
 # --- HYBRID ÖZETLEME ---
-def ozetle_hybrid(metin, format_secimi):
+def ozetle_hybrid(metin, format_secimi, hedef_dil="tr"):
+    dil_haritasi = {"tr": "Türkçe", "en": "İngilizce", "de": "Almanca", "es": "İspanyolca", "fr": "Fransızca", "it": "İtalyanca"}
+    dil_adi = dil_haritasi.get(hedef_dil, "Türkçe")
+
     prompt_haritasi = {
-        "maddeli": "Sana verilen haber metnindeki reklam veya detayları yok sayıp, haberin özünü Türkçe olarak maddeler halinde (📌 simgeleriyle) özetle.",
-        "tek_cumle": "Sana verilen metni sadece tek ve vurucu bir cümle ile Türkçe özetle.",
-        "tweet": "Sana verilen metinden ilgi çekici, bol emojili 3 maddelik bir Tweet/X flood dizisi oluştur.",
-        "soru_cevap": "Sana verilen metinden en önemli 3 soruyu çıkar ve bu soruları metne göre kısaca cevapla. Format: Soru 1: ... / Cevap 1: ..."
+        "maddeli": f"Haber metninin özünü {dil_adi} dilinde maddeler halinde (📌 simgeleriyle) özetle.",
+        "tek_cumle": f"Haber metnini {dil_adi} dilinde sadece tek ve vurucu bir cümle ile özetle.",
+        "tweet": f"Haber metninden {dil_adi} dilinde ilgi çekici 3 maddelik bir Tweet/X flood dizisi oluştur.",
+        "soru_cevap": f"Haber metninden en önemli 3 soruyu çıkar ve {dil_adi} dilinde cevapla (Soru 1: ... / Cevap 1: ...)."
     }
 
-    system_prompt = prompt_haritasi.get(format_secimi, prompt_haritasi["maddeli"])
+    secilen_format = prompt_haritasi.get(format_secimi, prompt_haritasi["maddeli"])
+
+    system_prompt = f"""Sen uzman bir haber analistisin.
+Cevabını SADECE geçerli bir JSON formatında ver.
+JSON Yapısı:
+{{
+  "duygu": "Pozitif" veya "Negatif" veya "Nötr",
+  "ozet": "Özet metni ({secilen_format})"
+}}"""
+
+    raw_response = None
 
     try:
         groq_client = get_groq_client()
         if groq_client:
             response = groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model ="llama-3.3-70b-versatile",
                 messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Aşağıdaki haberi özetle:\n\n{metin}"}    
+                    {"role": "system", "content" : system_prompt},
+                    {"role": "user", "content" : f"Haber:\n{metin}"}
                 ],
-                timeout=8
+                response_format={"type": "json_object"},
+                timeout = 8
             )
-            return response.choices[0].message.content
+            raw_response = response.choices[0].message.content
     except Exception as e:
-        print("Groq hatası:", e)
+        print("Groq hatası: ", e)
 
-    try:
-        if setup_gemini():
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            response = model.generate_content(f"{system_prompt}\n\nAşağıdaki haberi özetle:\n\n{metin}")
-            return response.text
-    except Exception as e:
-        print("Gemini hatası:", e)
+    if not raw_response:
+        try:
+            if setup_gemini():
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                res = model.generate_content(f"{system_prompt}\n\nHaber:\n{metin}")
+                raw_response = res.text
+        except Exception as e:
+            print("Gemini Hatası: ", e)
 
-    return "Özet oluşturulamadı. Lütfen API anahtarlarınızı Vercel ayarlarından kontrol edin."
+    if raw_response:
+        try:
+            cleaned = re.sub(r'```json|```', '', raw_response).strip()
+            data = json.loads(cleaned)
+            return data.get("ozet", "Özet oluşturulamadı."), data.get("duygu", "Nötr")
+        except Exception:
+            return raw_response, "Nötr"
+
+    return "Özet oluşturulamadı. API Keylerinizi kontrol edin.", "Nötr"
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     ozet = None
+    duygu = None
     baslik = None
     gorsel_url = None
     haberler = []
@@ -172,15 +199,16 @@ def index():
         if islem_turu == 'ozetle':
             url = request.form.get('url', '').strip()
             format_secimi = request.form.get('format', 'maddeli')
+            hedef_dil = request.form.get('dil', 'tr')
             
             if url:
                 baslik, gorsel_url, metin = haber_metni_cek(url)
                 if metin and len(metin) > 50:
-                    ozet = ozetle_hybrid(metin, format_secimi)
+                    ozet, duygu = ozetle_hybrid(metin, format_secimi, hedef_dil)
                 else:
                     ozet = "Haber içeriği çekilemedi veya metin çok kısa. Lütfen başka bir haber linki deneyin."
 
-    return render_template('index.html', ozet=ozet, baslik=baslik, gorsel_url=gorsel_url, haberler=haberler, arama_kelimesi=arama_kelimesi)
+    return render_template('index.html', ozet=ozet, duygu=duygu, baslik=baslik, gorsel_url=gorsel_url, haberler=haberler, arama_kelimesi=arama_kelimesi)
 
 # 🎙️ YENİ: GERÇEKÇİ KADIN SESİ (AI MP3 GENERATOR)
 @app.route('/seslendir', methods=['POST'])
@@ -188,6 +216,7 @@ def seslendir_api():
     try:
         data = request.get_json()
         metin = data.get("metin", "")
+        dil = data.get("dil", "tr")
 
         # Emojileri temizle
         metin_temiz = re.sub(r'[^\w\s,.\?!áéíóúâêîôûàèìòùäëïöüÇçĞğİıÖöŞşÜü-]', '', metin)
@@ -196,7 +225,7 @@ def seslendir_api():
             return {"error": "Metin bulunamadı"}, 400
 
         # Google'ın Doğal Türkçe Kadın Sesi ile MP3 üret
-        tts = gTTS(text=metin_temiz, lang='tr', slow=False)
+        tts = gTTS(text=metin_temiz, lang=dil, slow=False)
         fp = io.BytesIO()
         tts.write_to_fp(fp)
         fp.seek(0)
