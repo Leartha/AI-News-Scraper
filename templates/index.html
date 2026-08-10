@@ -12,7 +12,7 @@
         
         <div class="text-center mb-8">
             <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-2">
-                🚀 Gemini AI Haber Keşfet & Özetle
+                🚀 AI Haber Keşfet & Özetle
             </h1>
             <p class="text-gray-400 text-sm md:text-base">
                 İster konu aratıp haber seçin, ister direkt link yapıştırın. Yapay zeka saniyeler içinde özetlesin!
@@ -22,25 +22,24 @@
         <!-- İKİLİ ARAMA / LİNK GİRİŞ ALANI -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             
-                    <!-- KONU ARAMA BARI -->
-        <div class="bg-gray-900/60 p-5 rounded-xl border border-gray-700 flex flex-col justify-between">
-            <div>
-                <h2 class="text-lg font-semibold text-blue-400 mb-2 flex items-center gap-2">
-                    <span>🔍 Konu veya Haber Ara</span>
-                </h2>
-                <p class="text-xs text-gray-400 mb-4">Arama yapın, en güncel haberleri listeleyelim.</p>
+            <!-- KONU ARAMA BARI (GET METODU) -->
+            <div class="bg-gray-900/60 p-5 rounded-xl border border-gray-700 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-blue-400 mb-2 flex items-center gap-2">
+                        <span>🔍 Konu veya Haber Ara</span>
+                    </h2>
+                    <p class="text-xs text-gray-400 mb-4">Arama yapın, en güncel haberleri listeleyelim.</p>
+                </div>
+                
+                <form action="/" method="GET" class="space-y-3">
+                    <input type="text" name="query" value="{{ arama_kelimesi }}" placeholder="Örn: Yapay zeka, Togg, Dolar..." required
+                        class="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400 text-sm">
+                    <button type="submit" 
+                        class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg transition text-sm cursor-pointer">
+                        Haberleri Getir
+                    </button>
+                </form>
             </div>
-            
-            <!-- METHOD = GET OLARAK GÜNCELLENDİ -->
-            <form action="/" method="GET" class="space-y-3">
-                <input type="text" name="query" value="{{ arama_kelimesi }}" placeholder="Örn: Özgür Özel, Togg, Dolar..." required
-                    class="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400 text-sm">
-                <button type="submit" 
-                    class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg transition text-sm cursor-pointer">
-                    Haberleri Getir
-                </button>
-            </form>
-        </div>
 
             <!-- DİREKT LİNK YAPIŞTIRMA BARI -->
             <div class="bg-gray-900/60 p-5 rounded-xl border border-gray-700 flex flex-col justify-between">
@@ -53,7 +52,7 @@
 
                 <form method="POST" class="space-y-3">
                     <input type="hidden" name="islem_turu" value="ozetle">
-                    <input type="url" name="url" placeholder="https://www.bbcturkce.com/..." required
+                    <input type="url" name="url" placeholder="https://www.sozcu.com.tr/..." required
                         class="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-white placeholder-gray-400 text-sm">
                     
                     <select name="format" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-xl focus:outline-none text-white text-xs cursor-pointer">
@@ -130,7 +129,7 @@
                 <div>
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
                         <h3 class="text-lg font-semibold text-emerald-400 flex items-center gap-2">
-                            <span>✨ Gemini AI Özeti</span>
+                            <span>✨ AI Haber Özeti</span>
                         </h3>
 
                         <div class="flex items-center gap-2 bg-gray-900/60 p-1.5 rounded-xl border border-gray-700">
@@ -142,11 +141,10 @@
 
                             <select id="hiz-secimi" 
                                 class="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 font-semibold py-1 px-1.5 rounded-lg border border-gray-600 focus:outline-none transition cursor-pointer">
-                                <option value="0.5">0.5x</option>
+                                <option value="0.8">0.8x</option>
                                 <option value="1.0" selected>1.0x</option>
+                                <option value="1.1">1.1x</option>
                                 <option value="1.25">1.25x</option>
-                                <option value="1.5">1.5x</option>
-                                <option value="2.0">2.0x</option>
                             </select>
 
                             <button type="button" onclick="seslendir()" id="ses-btn"
@@ -175,9 +173,28 @@
     </div>
 
     <script>
+        let kütüphaneSesi = null;
+
+        // Tarayıcıdaki Türkçe Kadın Sesini Otomatik Tespit Et
+        function tıklaVeSesleriYukle() {
+            if ('speechSynthesis' in window) {
+                const voices = speechSynthesis.getVoices();
+                // 1. Öncelik: Akıcı Google veya Natural Kadın Türkçe Sesleri
+                // 2. Öncelik: Herhangi bir Türkçe (tr-TR) Ses
+                kütüphaneSesi = voices.find(v => v.lang.includes("tr") && (v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("Yelda") || v.name.includes("Emel"))) 
+                            || voices.find(v => v.lang.startsWith("tr"));
+            }
+        }
+
+        if ('speechSynthesis' in window) {
+            speechSynthesis.onvoiceschanged = tıklaVeSesleriYukle;
+            tıklaVeSesleriYukle();
+        }
+
         function seslendir() {
             const btn = document.getElementById("ses-btn");
             
+            // Eğer zaten okunuyorsa durdur
             if (speechSynthesis.speaking) {
                 speechSynthesis.cancel();
                 btn.innerHTML = "🔊 Dinle";
@@ -186,8 +203,12 @@
                 return;
             }
 
-            const metin = document.getElementById("ozet-metni").innerText;
+            let metin = document.getElementById("ozet-metni").innerText;
             if (!metin) return;
+
+            // ⚡ EMOJİ VE RAPTİYELERİ TEMİZLEME ALGORİTMASI
+            // Bütün özel emojileri ve simgeleri siler, metnin akışını bozmaz.
+            metin = metin.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}📌🎯🐦❓✨]/gu, '');
 
             const secilenHiz = parseFloat(document.getElementById("hiz-secimi").value) || 1.0;
             const secilenSes = parseFloat(document.getElementById("ses-seviyesi").value) ?? 1.0;
@@ -196,6 +217,11 @@
             utterance.lang = "tr-TR";
             utterance.rate = secilenHiz;
             utterance.volume = secilenSes;
+
+            // Eğer doğal kadın sesi bulunduysa onu atıyoruz
+            if (kütüphaneSesi) {
+                utterance.voice = kütüphaneSesi;
+            }
 
             utterance.onstart = function() {
                 btn.innerHTML = "⏹️ Durdur";
