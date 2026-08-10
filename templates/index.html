@@ -22,25 +22,25 @@
         <!-- İKİLİ ARAMA / LİNK GİRİŞ ALANI -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             
-            <!-- KONU ARAMA BARI -->
-            <div class="bg-gray-900/60 p-5 rounded-xl border border-gray-700 flex flex-col justify-between">
-                <div>
-                    <h2 class="text-lg font-semibold text-blue-400 mb-2 flex items-center gap-2">
-                        <span>🔍 Konu veya Haber Ara</span>
-                    </h2>
-                    <p class="text-xs text-gray-400 mb-4">Arama yapın, en güncel haberleri listeleyelim.</p>
-                </div>
-                
-                <form method="POST" class="space-y-3">
-                    <input type="hidden" name="islem_turu" value="ara">
-                    <input type="text" name="query" value="{{ arama_kelimesi }}" placeholder="Örn: Yapay zeka, Togg, Dolar..." required
-                        class="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400 text-sm">
-                    <button type="submit" 
-                        class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg transition text-sm cursor-pointer">
-                        Haberleri Getir
-                    </button>
-                </form>
+                    <!-- KONU ARAMA BARI -->
+        <div class="bg-gray-900/60 p-5 rounded-xl border border-gray-700 flex flex-col justify-between">
+            <div>
+                <h2 class="text-lg font-semibold text-blue-400 mb-2 flex items-center gap-2">
+                    <span>🔍 Konu veya Haber Ara</span>
+                </h2>
+                <p class="text-xs text-gray-400 mb-4">Arama yapın, en güncel haberleri listeleyelim.</p>
             </div>
+            
+            <!-- METHOD = GET OLARAK GÜNCELLENDİ -->
+            <form action="/" method="GET" class="space-y-3">
+                <input type="text" name="query" value="{{ arama_kelimesi }}" placeholder="Örn: Özgür Özel, Togg, Dolar..." required
+                    class="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400 text-sm">
+                <button type="submit" 
+                    class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg transition text-sm cursor-pointer">
+                    Haberleri Getir
+                </button>
+            </form>
+        </div>
 
             <!-- DİREKT LİNK YAPIŞTIRMA BARI -->
             <div class="bg-gray-900/60 p-5 rounded-xl border border-gray-700 flex flex-col justify-between">
