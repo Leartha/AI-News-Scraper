@@ -1,7 +1,5 @@
 flask
 requests
 beautifulsoup4
-lxml
-duckduckgo_search
 groq
-google-genai
+google-generativeai
