@@ -24,6 +24,8 @@ client = Groq(api_key=GROQ_KEY)
 
 def ana_sayfa():
     ozet = None
+    baslik = None
+    gorsel_url = None
 
     if request.method == "POST":
         link = request.form.get("url")
