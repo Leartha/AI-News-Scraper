@@ -35,7 +35,7 @@ def setup_gemini():
         return True
     return False
 
-# --- HABER ARAMA (Gerçek Link Ayıklayıcı ile) ---
+# --- HABER ARAMA (Bing News RSS - %100 Orijinal Link Garantili) ---
 def haber_ara(kelime):
     haberler = []
     if not kelime:
@@ -43,9 +43,10 @@ def haber_ara(kelime):
         
     try:
         query = urllib.parse.quote(kelime)
-        rss_url = f"https://news.google.com/rss/search?q={query}&hl=tr&gl=TR&ceid=TR:tr"
+        # Bing News RSS: Doğrudan kaynak URL'si verir, yönlendirme tuzaklarına takılmaz.
+        rss_url = f"https://www.bing.com/news/search?q={query}&format=rss&cc=tr"
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
         }
         response = requests.get(rss_url, headers=headers, timeout=5)
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -54,32 +55,28 @@ def haber_ara(kelime):
 
         for item in items:
             title_tag = item.find('title')
-            source_tag = item.find('source')
+            link_tag = item.find('link')
             pub_date_tag = item.find('pubdate') or item.find('pubDate')
-            description_tag = item.find('description')
 
             title = title_tag.get_text() if title_tag else 'Başlık Yok'
-            source = source_tag.get_text() if source_tag else 'Haber Kaynağı'
+            
+            link = ""
+            if link_tag:
+                link = link_tag.get_text().strip() if link_tag.get_text() else str(link_tag.next_sibling).strip()
+
             pub_date = pub_date_tag.get_text()[:16] if pub_date_tag else ''
 
-            # Google RSS linki yerine description içindeki GERÇEK site linkini ayıkla
-            gercek_link = ""
-            if description_tag:
-                desc_soup = BeautifulSoup(description_tag.get_text(), 'html.parser')
-                a_tag = desc_soup.find('a')
-                if a_tag and a_tag.get('href'):
-                    gercek_link = a_tag.get('href')
+            # Alan adından (domain) kaynak adını çıkar
+            source = 'Haber Kaynağı'
+            if link:
+                domain_match = re.search(r'https?://(?:www\.)?([^/]+)', link)
+                if domain_match:
+                    source = domain_match.group(1).capitalize()
 
-            # Eğer description'dan çıkmazsa varsayılan linki al
-            if not gercek_link:
-                link_tag = item.find('link')
-                if link_tag:
-                    gercek_link = link_tag.get_text() if link_tag.get_text() else link_tag.next_sibling
-
-            if title and gercek_link:
+            if title and link and link.startswith('http'):
                 haberler.append({
                     'title': title,
-                    'url': str(gercek_link).strip(),
+                    'url': link,
                     'source': source,
                     'date': pub_date
                 })
@@ -87,40 +84,38 @@ def haber_ara(kelime):
         print("Haber arama hatası:", e)
     return haberler
 
-# --- HABER METNİ ÇEKİCİ (Gelişmiş Bot Koruma Aşma) ---
+# --- HABER METNİ ÇEKİCİ ---
 def haber_metni_cek(url):
     try:
-        # Gerçek bir tarayıcı gibi davranıyoruz
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
             'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
             'Referer': 'https://www.google.com/'
         }
         
-        # Yönlendirmeleri takip et
-        response = requests.get(url, headers=headers, timeout=6, allow_redirects=True)
+        response = requests.get(url, headers=headers, timeout=7, allow_redirects=True)
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Başlığı Çek
+        # Başlık
         baslik = soup.find('h1')
         baslik_metni = baslik.get_text().strip() if baslik else ""
 
-        # Görseli Çek
+        # Görsel
         og_image = soup.find('meta', property='og:image') or soup.find('meta', attrs={'name': 'twitter:image'})
         gorsel_url = og_image['content'] if og_image and 'content' in og_image.attrs else ""
 
-        # Çöp etiketleri temizle
+        # Temizlik
         for cop in soup(["script", "style", "header", "footer", "nav", "aside", "form", "iframe", "noscript"]):
             cop.decompose()
 
-        # Metinleri topla
+        # Paragraflardan metin çıkar
         paragraflar = soup.find_all('p')
-        metin_parcalari = [p.get_text().strip() for p in paragraflar if len(p.get_text().strip()) > 20]
+        metin_parcalari = [p.get_text().strip() for p in paragraflar if len(p.get_text().strip()) > 25]
         haber_metni = " ".join(metin_parcalari)
 
-        # Eğer paragraflardan metin çıkmazsa haber / article tag'ine bak
-        if len(haber_metni) < 50:
-            article = soup.find('article') or soup.find('div', class_=re.compile(r'content|article|detail|news', re.I))
+        # Alternatif: Eğer p etiketlerinden yeterli metin çıkmazsa article/content div'lerine bak
+        if len(haber_metni) < 100:
+            article = soup.find('article') or soup.find('div', class_=re.compile(r'content|article|detail|news|post-body', re.I))
             if article:
                 haber_metni = article.get_text().strip()
 
