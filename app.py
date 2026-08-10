@@ -34,7 +34,7 @@ def setup_gemini():
         return True
     return False
 
-# --- HABER ARAMA (Google RSS - Ultra Güvenli) ---
+# --- ULTRA HIZLI HABER ARAMA ---
 def haber_ara(kelime):
     haberler = []
     if not kelime:
@@ -44,31 +44,36 @@ def haber_ara(kelime):
         query = urllib.parse.quote(kelime)
         rss_url = f"https://news.google.com/rss/search?q={query}&hl=tr&gl=TR&ceid=TR:tr"
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
         }
-        response = requests.get(rss_url, headers=headers, timeout=5)
-        
-        try:
-            soup = BeautifulSoup(response.content, 'xml')
-        except Exception:
-            soup = BeautifulSoup(response.content, 'html.parser')
+        # Timeout 3 saniye yapıldı ki Vercel kilitlenmesin
+        response = requests.get(rss_url, headers=headers, timeout=3)
+        soup = BeautifulSoup(response.content, 'html.parser')
             
         items = soup.find_all('item')[:5]
 
         for item in items:
-            title = item.find('title').get_text() if item.find('title') else 'Başlık Yok'
-            link = item.find('link').get_text() if item.find('link') else ''
-            
+            title_tag = item.find('title')
+            link_tag = item.find('link')
             source_tag = item.find('source')
-            source = source_tag.get_text() if source_tag else 'Haber Kaynağı'
+            pub_date_tag = item.find('pubdate') or item.find('pubDate')
+
+            title = title_tag.get_text() if title_tag else 'Başlık Yok'
             
-            pub_date_tag = item.find('pubDate')
+            # Google RSS içindeki linkleri çek
+            link = ""
+            if link_tag:
+                link = link_tag.get_text() if link_tag.get_text() else link_tag.next_sibling
+                if not link or not str(link).startswith("http"):
+                    link = item.find('guid').get_text() if item.find('guid') else ""
+
+            source = source_tag.get_text() if source_tag else 'Haber Kaynağı'
             pub_date = pub_date_tag.get_text()[:16] if pub_date_tag else ''
 
-            if link:
+            if title and link:
                 haberler.append({
                     'title': title,
-                    'url': link,
+                    'url': str(link).strip(),
                     'source': source,
                     'date': pub_date
                 })
@@ -80,9 +85,9 @@ def haber_ara(kelime):
 def haber_metni_cek(url):
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        response = requests.get(url, headers=headers, timeout=8, allow_redirects=True)
+        response = requests.get(url, headers=headers, timeout=4, allow_redirects=True)
         soup = BeautifulSoup(response.text, 'html.parser')
 
         baslik = soup.find('h1')
@@ -122,7 +127,8 @@ def ozetle_hybrid(metin, format_secimi):
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"Aşağıdaki haberi özetle:\n\n{metin}"}    
-                ]
+                ],
+                timeout=5
             )
             return response.choices[0].message.content
     except Exception as e:
@@ -146,13 +152,11 @@ def index():
     gorsel_url = None
     haberler = []
     
-    # URL'den arama sorgusunu al (GET metodu - F5 dostu)
     arama_kelimesi = request.args.get('query', '').strip()
     
     if arama_kelimesi:
         haberler = haber_ara(arama_kelimesi)
 
-    # Özetleme işlemi POST olarak devam eder
     if request.method == 'POST':
         islem_turu = request.form.get('islem_turu')
         
