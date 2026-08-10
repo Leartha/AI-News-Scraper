@@ -88,5 +88,42 @@
 
     </div>
 
+    <script>
+        let okumaDurumu = false;
+
+        function seslendir() {
+            const btn = document.getElementById("ses-btn");
+
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+                btn.innerHTML = "🔊 Sesli Dinle";
+                btn.classList.remove("text-red-400");
+                btn.classList.add("text-blue-400");
+                return;
+            }
+
+        const metin = document.getElementById("ozet-metni").innerText;
+        if (!metin) return;
+
+        const utterance = new SpeechSynthesisUtterance(metin);
+        utterance.lang = "tr-TR";
+        utterance.rate = 1.0;
+
+        utterance.onstart = function() {
+            btn.innerHTML = "⏹️ Durdur";
+            btn.classList.remove("text-blue-400");
+            btn.classList.add("text-red-400");
+        };
+
+        utterance.onend = function() {
+            btn.innerHTML = "🔊 Sesli Dinle";
+            btn.classList.remove("text-red-400");
+            btn.classList.add("text-blue-400");
+        };
+
+        speechSynthesis.speak(utterance);
+    }
+    </script>
+
 </body>
 </html>
