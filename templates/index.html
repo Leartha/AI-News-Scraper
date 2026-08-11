@@ -21,6 +21,8 @@
 
         <!-- İKİLİ ARAMA / LİNK GİRİŞ ALANI -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            
+            <!-- KONU ARAMA BARI (GET METODU) -->
             <div class="bg-gray-900/60 p-5 rounded-xl border border-gray-700 flex flex-col justify-between">
                 <div>
                     <h2 class="text-lg font-semibold text-blue-400 mb-2 flex items-center gap-2">
@@ -39,6 +41,7 @@
                 </form>
             </div>
 
+            <!-- DİREKT LİNK YAPIŞTIRMA BARI -->
             <div class="bg-gray-900/60 p-5 rounded-xl border border-gray-700 flex flex-col justify-between">
                 <div>
                     <h2 class="text-lg font-semibold text-emerald-400 mb-2 flex items-center gap-2">
@@ -65,6 +68,7 @@
                     </button>
                 </form>
             </div>
+
         </div>
 
         <!-- ARAMA SONUÇLARI -->
@@ -128,20 +132,24 @@
                             <span>✨ AI Haber Özeti</span>
                         </h3>
 
-                        <!-- SES KONTROL PANELİ -->
                         <div class="flex items-center gap-2 bg-gray-900/60 p-1.5 rounded-xl border border-gray-700">
-                            <!-- HIZ SEÇENEKLERİ: 0.5x, 1x, 1.5x, 2x -->
-                            <select id="hiz-secimi" onchange="hizDegistir()"
+                            <div class="flex items-center gap-1 px-1">
+                                <span class="text-xs">🔊</span>
+                                <input type="range" id="ses-seviyesi" min="0" max="1" step="0.1" value="1" 
+                                    class="w-16 accent-emerald-500 cursor-pointer">
+                            </div>
+
+                            <select id="hiz-secimi" 
                                 class="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 font-semibold py-1 px-1.5 rounded-lg border border-gray-600 focus:outline-none transition cursor-pointer">
-                                <option value="0.5">0.5x</option>
-                                <option value="1.0" selected>1.0x (Normal)</option>
-                                <option value="1.5">1.5x</option>
-                                <option value="2.0">2.0x</option>
+                                <option value="0.8">0.8x</option>
+                                <option value="1.0" selected>1.0x</option>
+                                <option value="1.1">1.1x</option>
+                                <option value="1.25">1.25x</option>
                             </select>
 
-                            <button type="button" onclick="sesOynat()" id="ses-btn"
+                            <button type="button" onclick="seslendir()" id="ses-btn"
                                 class="text-xs bg-gray-700 hover:bg-gray-600 text-blue-400 font-semibold py-1 px-2.5 rounded-lg border border-gray-600 flex items-center gap-1 transition cursor-pointer">
-                                🎙️ Dinle (AI Kadın Sesi)
+                                🔊 Dinle
                             </button>
                         </div>
                     </div>
@@ -160,77 +168,88 @@
                 </form>
 
             </div>
+
+            <div class="flex items-center gap-3 mb-3">
+    <h3 class="text-lg font-semibold text-emerald-500">✨ AI Özeti</h3>
+    
+                <!-- Duygu Durumu Rozeti -->
+                {% if duygu %}
+                    <span class="px-3 py-1 rounded-full text-xs font-bold 
+                        {% if duygu == 'Pozitif' %} bg-green-100 text-green-800 border border-green-300
+                        {% elif duygu == 'Negatif' %} bg-red-100 text-red-800 border border-red-300
+                        {% else %} bg-gray-100 text-gray-800 border border-gray-300 {% endif %}">
+                        😊 {{ duygu }}
+                    </span>
+                {% endif %}
+            </div>
         {% endif %}
 
     </div>
 
-    <!-- GİZLİ SES PLAYER -->
-    <audio id="ai-audio-player"></audio>
-
     <script>
-        let globalAudio = document.getElementById("ai-audio-player");
+        let kütüphaneSesi = null;
 
-        function hizDegistir() {
-            const secilenHiz = parseFloat(document.getElementById("hiz-secimi").value);
-            if (globalAudio) {
-                globalAudio.playbackRate = secilenHiz;
+        // Tarayıcıdaki Türkçe Kadın Sesini Otomatik Tespit Et
+        function tıklaVeSesleriYukle() {
+            if ('speechSynthesis' in window) {
+                const voices = speechSynthesis.getVoices();
+                // 1. Öncelik: Akıcı Google veya Natural Kadın Türkçe Sesleri
+                // 2. Öncelik: Herhangi bir Türkçe (tr-TR) Ses
+                kütüphaneSesi = voices.find(v => v.lang.includes("tr") && (v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("Yelda") || v.name.includes("Emel"))) 
+                            || voices.find(v => v.lang.startsWith("tr"));
             }
         }
 
-        async function sesOynat() {
-            const btn = document.getElementById("ses-btn");
-            const metin = document.getElementById("ozet-metni").innerText;
+        if ('speechSynthesis' in window) {
+            speechSynthesis.onvoiceschanged = tıklaVeSesleriYukle;
+            tıklaVeSesleriYukle();
+        }
 
-            // Eğer çalıyorsa durdur
-            if (!globalAudio.paused) {
-                globalAudio.pause();
-                globalAudio.currentTime = 0;
-                btn.innerHTML = "🎙️ Dinle";
+        function seslendir() {
+            const btn = document.getElementById("ses-btn");
+            
+            // Eğer zaten okunuyorsa durdur
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+                btn.innerHTML = "🔊 Dinle";
                 btn.classList.remove("text-red-400");
                 btn.classList.add("text-blue-400");
                 return;
             }
 
-            btn.innerHTML = "⏳ Ses Hazırlanıyor...";
-            btn.disabled = true;
+            let metin = document.getElementById("ozet-metni").innerText;
+            if (!metin) return;
 
-            try {
-                // Arka plandan üretilen MP3 sesini çağır
-                const response = await fetch('/seslendir', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ metin: metin })
-                });
+            // ⚡ EMOJİ VE RAPTİYELERİ TEMİZLEME ALGORİTMASI
+            // Bütün özel emojileri ve simgeleri siler, metnin akışını bozmaz.
+            metin = metin.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}📌🎯🐦❓✨]/gu, '');
 
-                if (!response.ok) throw new Error("Ses üretilemedi.");
+            const secilenHiz = parseFloat(document.getElementById("hiz-secimi").value) || 1.0;
+            const secilenSes = parseFloat(document.getElementById("ses-seviyesi").value) ?? 1.0;
 
-                const blob = await response.blob();
-                const audioUrl = URL.createObjectURL(blob);
+            const utterance = new SpeechSynthesisUtterance(metin);
+            utterance.lang = "tr-TR";
+            utterance.rate = secilenHiz;
+            utterance.volume = secilenSes;
 
-                globalAudio.src = audioUrl;
-                
-                // Hızı ayarla (0.5, 1, 1.5, 2)
-                hizDegistir();
+            // Eğer doğal kadın sesi bulunduysa onu atıyoruz
+            if (kütüphaneSesi) {
+                utterance.voice = kütüphaneSesi;
+            }
 
-                globalAudio.play();
-
-                btn.disabled = false;
+            utterance.onstart = function() {
                 btn.innerHTML = "⏹️ Durdur";
                 btn.classList.remove("text-blue-400");
                 btn.classList.add("text-red-400");
+            };
 
-                globalAudio.onended = function() {
-                    btn.innerHTML = "🎙️ Dinle";
-                    btn.classList.remove("text-red-400");
-                    btn.classList.add("text-blue-400");
-                };
+            utterance.onend = function() {
+                btn.innerHTML = "🔊 Dinle";
+                btn.classList.remove("text-red-400");
+                btn.classList.add("text-blue-400");
+            };
 
-            } catch (err) {
-                console.error(err);
-                alert("Ses oluşturulurken bir hata oluştu.");
-                btn.disabled = false;
-                btn.innerHTML = "🎙️ Dinle";
-            }
+            speechSynthesis.speak(utterance);
         }
     </script>
 
