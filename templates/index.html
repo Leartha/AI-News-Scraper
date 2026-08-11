@@ -1,12 +1,18 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI News Scraper & Summarizer</title>
+    <title>AI News Summarizer Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen font-sans flex flex-col items-center py-10 px-4">
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-300 min-h-screen">
 
     <div class="max-w-4xl w-full bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 border border-gray-700">
         
@@ -18,6 +24,26 @@
                 İster konu aratıp haber seçin, ister direkt link yapıştırın. Yapay zeka saniyeler içinde özetlesin!
             </p>
         </div>
+
+
+        <!-- Karanlık / Aydınlık Mod Geçiş Butonu -->
+        <button 
+            id="theme-toggle" 
+            type="button" 
+            class="p-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 transition flex items-center gap-2 text-sm font-medium shadow-sm"
+        >
+            <!-- Ay İkonu (Karanlık Moda Geçiş İçin) -->
+            <span id="theme-toggle-dark-icon" class="flex items-center gap-1.5">
+                <span>🌙</span>
+                <span class="hidden sm:inline">Karanlık Mod</span>
+            </span>
+
+            <!-- Güneş İkonu (Aydınlık Moda Geçiş İçin) -->
+            <span id="theme-toggle-light-icon" class="hidden flex items-center gap-1.5">
+                <span>☀️</span>
+                <span class="hidden sm:inline">Aydınlık Mod</span>
+            </span>
+        </button>
 
         <!-- İKİLİ ARAMA / LİNK GİRİŞ ALANI -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -167,50 +193,110 @@
                     </button>
                 </form>
 
-            </div>
-
-                        <!-- YENİ: Gizli Haber Metni Deposu (JS'in okuyabilmesi için) -->
-            {% if haber_metni %}
-            <input type="hidden" id="raw-haber-metni" value="{{ haber_metni | escape }}">
-
-            <!-- AI Chatbot Kartı -->
-            <div class="mt-8 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl">
-                <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
-                    <div class="flex items-center gap-2">
-                        <span class="text-xl">🤖</span>
-                        <h3 class="font-bold text-slate-200">Habere Soru Sor</h3>
-                    </div>
-                    <span class="text-xs text-slate-400 bg-slate-800 px-2.5 py-1 rounded-full border border-slate-700">AI Asistan</span>
                 </div>
 
-                <!-- Sohbet Geçmişi / Baloncuklar Alanı -->
-                <div id="chat-messages" class="space-y-3 max-h-80 overflow-y-auto mb-4 pr-2 text-sm">
-                    <div class="bg-slate-800/60 border border-slate-700/50 text-slate-300 p-3 rounded-xl max-w-[85%] leading-relaxed">
-                        👋 Merhaba! Bu haberle ilgili merak ettiğin her şeyi bana sorabilirsin.
+                            <!-- Gizli Haber Metni Deposu (JS'in okuyabilmesi için) -->
+                {% if haber_metni %}
+                <input type="hidden" id="raw-haber-metni" value="{{ haber_metni | escape }}">
+
+                <!-- AI Chatbot Kartı -->
+                <div class="mt-8 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl">
+                    <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">🤖</span>
+                            <h3 class="font-bold text-slate-200">Habere Soru Sor</h3>
+                        </div>
+                        <span class="text-xs text-slate-400 bg-slate-800 px-2.5 py-1 rounded-full border border-slate-700">AI Asistan</span>
+                    </div>
+
+                    <!-- Sohbet Geçmişi / Baloncuklar Alanı -->
+                    <div id="chat-messages" class="space-y-3 max-h-80 overflow-y-auto mb-4 pr-2 text-sm">
+                        <div class="bg-slate-800/60 border border-slate-700/50 text-slate-300 p-3 rounded-xl max-w-[85%] leading-relaxed">
+                            👋 Merhaba! Bu haberle ilgili merak ettiğin her şeyi bana sorabilirsin.
+                        </div>
+                    </div>
+
+                    <!-- Soru Giriş Alanı ve Buton -->
+                    <form id="chat-form" class="flex gap-2">
+                        <input 
+                            type="text" 
+                            id="chat-input" 
+                            placeholder="Örn: Bu olay ne zaman gerçekleşti?" 
+                            required
+                            class="flex-1 bg-slate-950 border border-slate-800 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 transition"
+                        >
+                        <button 
+                            type="submit" 
+                            id="chat-send-btn"
+                            class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-sm transition flex items-center gap-2 disabled:opacity-50"
+                        >
+                            <span>Gönder</span>
+                            <span>🚀</span>
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+                
+                            <!-- Sunum PDF Butonu -->
+                {% if ozet %}
+                <button 
+                    onclick="sunumPdfOlustur()" 
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition flex items-center gap-2 shadow-lg shadow-indigo-500/20"
+                >
+                    <span>📊 Sunum PDF'i İndir</span>
+                </button>
+                {% endif %}
+
+                <!-- GİZLİ SUNUM TEMPLATE'İ (PDF Yapılırken Bu Tasarım Kullanılacak) -->
+                <div class="hidden">
+                    <div id="presentation-template" class="bg-slate-950 text-slate-100 font-sans p-0 m-0" style="width: 1120px; font-family: 'Inter', sans-serif;">
+                        
+                        <!-- SLAYT 1: KAPAK SLAYTI -->
+                        <div class="slide p-12 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 flex flex-col justify-between border-b border-indigo-500/20" style="height: 630px; page-break-after: always;">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-bold tracking-widest text-indigo-400 uppercase bg-indigo-500/10 px-3 py-1.5 rounded-full border border-indigo-500/20">
+                                    EXECUTIVE BRIEFING REPORT
+                                </span>
+                                <span class="text-xs text-slate-400">Yapay Zeka Destekli Haber Analizi</span>
+                            </div>
+                            
+                            <div class="my-auto space-y-4">
+                                <div class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                    😊 Duygu Analizi: {{ duygu if duygu else 'Nötr' }}
+                                </div>
+                                <h1 class="text-4xl font-extrabold text-white leading-tight max-w-4xl">
+                                    {{ baslik if baslik else 'Haber Analiz & Özet Raporu' }}
+                                </h1>
+                                <p class="text-slate-400 text-sm">Bu sunum, yapay zeka sistemleri tarafından otomatik olarak analiz edilerek yönetici özetine dönüştürülmüştür.</p>
+                            </div>
+
+                            <div class="flex justify-between items-center text-xs text-slate-500 pt-6 border-t border-slate-800">
+                                <span>Tarih: {{ moment().format('DD.MM.YYYY') if moment else 'Güncel' }}</span>
+                                <span>Gizli & Özel Sunum Dokümanı</span>
+                            </div>
+                        </div>
+
+                        <!-- SLAYT 2: ANA ÖZET VE BULGULAR -->
+                        <div class="slide p-12 bg-slate-900 flex flex-col justify-between" style="height: 630px;">
+                            <div class="flex justify-between items-center mb-6">
+                                <h2 class="text-2xl font-bold text-indigo-400 flex items-center gap-2">
+                                    📌 Stratejik Özet & Key Takeaways
+                                </h2>
+                                <span class="text-xs text-slate-500">Sayfa 2 / 2</span>
+                            </div>
+
+                            <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-8 my-auto text-slate-200 text-lg leading-relaxed whitespace-pre-line shadow-inner">
+                                {{ ozet }}
+                            </div>
+
+                            <div class="flex justify-between items-center text-xs text-slate-500 pt-6 border-t border-slate-800">
+                                <span>AI News Summarizer Pro</span>
+                                <span>Sunuma Hazır Otomatik Çıktı</span>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
-
-                <!-- Soru Giriş Alanı ve Buton -->
-                <form id="chat-form" class="flex gap-2">
-                    <input 
-                        type="text" 
-                        id="chat-input" 
-                        placeholder="Örn: Bu olay ne zaman gerçekleşti?" 
-                        required
-                        class="flex-1 bg-slate-950 border border-slate-800 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 transition"
-                    >
-                    <button 
-                        type="submit" 
-                        id="chat-send-btn"
-                        class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-sm transition flex items-center gap-2 disabled:opacity-50"
-                    >
-                        <span>Gönder</span>
-                        <span>🚀</span>
-                    </button>
-                </form>
-            </div>
-            {% endif %}
-            
 
 
             <div class="flex items-center gap-3 mb-3">
@@ -231,7 +317,6 @@
     </div>
 
     <script>
-
                 // Chatbot Form Dinleyicisi
         document.getElementById('chat-form')?.addEventListener('submit', async function (e) {
             e.preventDefault();
@@ -321,11 +406,6 @@
             );
         }
 
-
-
-
-
-
         let kütüphaneSesi = null;
 
         // Tarayıcıdaki Türkçe Kadın Sesini Otomatik Tespit Et
@@ -390,6 +470,82 @@
 
             speechSynthesis.speak(utterance);
         }
+
+
+        function sunumPdfOlustur() {
+            const element = document.getElementById('presentation-template');
+            
+            if (!element) {
+                alert("Sunum şablonu bulunamadı.");
+                return;
+            }
+
+            // PDF Dönüştürme Seçenekleri (16:9 Büyüklüğünde Sunum Sayfası)
+            const opt = {
+                margin:       0,
+                filename:     'Haber_Sunum_Raporu.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, logging: false },
+                jsPDF:        { unit: 'px', format: [1120, 630], orientation: 'landscape' }
+            };
+
+            // Yükleniyor Uyarısı Ver
+            const btn = event.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⌛ Sunum Hazırlanıyor...';
+            btn.disabled = true;
+
+            // PDF Üret ve İndir
+            html2pdf().set(opt).from(element).save().then(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }).catch(err => {
+                console.error("PDF Hatası:", err);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                alert("PDF oluşturulurken bir sorun oluştu.");
+            });
+        }
+
+                // ==================== KARANLIK / AYDINLIK MOD MANTIĞI ====================
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const darkIcon = document.getElementById('theme-toggle-dark-icon');
+        const lightIcon = document.getElementById('theme-toggle-light-icon');
+
+        // Sayfa Yüklendiğinde Tema Tercihini Kontrol Et ve Uygula
+        function applyInitialTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            // Kayıtlı tema 'dark' ise veya kayıt yoksa ama sistem dark kullanıyorsa
+            if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
+                document.documentElement.classList.add('dark');
+                darkIcon?.classList.add('hidden');
+                lightIcon?.classList.remove('hidden');
+            } else {
+                document.documentElement.classList.remove('dark');
+                lightIcon?.classList.add('hidden');
+                darkIcon?.classList.remove('hidden');
+            }
+        }
+
+        // Butona Tıklandığında Temayı Değiştir ve Hafızaya Kaydet
+        themeToggleBtn?.addEventListener('click', function () {
+            const isDark = document.documentElement.classList.toggle('dark');
+
+            if (isDark) {
+                localStorage.setItem('theme', 'dark');
+                darkIcon?.classList.add('hidden');
+                lightIcon?.classList.remove('hidden');
+            } else {
+                localStorage.setItem('theme', 'light');
+                lightIcon?.classList.add('hidden');
+                darkIcon?.classList.remove('hidden');
+            }
+        });
+
+        // Sayfa açılır açılmaz çalıştır
+        applyInitialTheme();
     </script>
 
 </body>
