@@ -180,12 +180,56 @@ JSON Yapısı:
     return "Özet oluşturulamadı. API Keylerinizi kontrol edin.", "Nötr"
 
 
+def habere_soru_sor(haber_metni, soru):
+    system_prompt = """Sen uzman bir haber asistanısın. 
+Görevin, kullanıcının sorusunu SADECE sana verilen haber metnindeki bilgilere dayanarak cevaplamaktır.
+Eğer sorunun cevabı haber metninde YOKSA, dürüstçe 'Bu sorunun cevabı verilen haber metninde yer almıyor.' de ve tahmin yürütme.
+Cevabın net, kısa ve anlaşılır olsun."""
+
+    user_prompt = f"""HABER METNİ:
+{haber_metni}
+
+KULLANICININ SORUSU:
+{soru}"""
+
+    #1. Deneme: Groq
+    try:
+        groq_client = get_groq_client()
+        if groq_client:
+            response = groq_client.chat.completions.create(
+                model = "llama-3.3-70b-versatile",
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                timeout=8
+            )
+            return response.choices[0].message.content
+    except Exception as e:
+        print("Groq Soru-Cevap Hatası:", e)
+
+    #2. Denem: Gemini (Yedek)
+    try:
+        if setup_gemini():
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            res = model.generate_content(f"{system_prompt}\n\n{user_prompt}")
+            return res.text
+
+    except Exception as e:
+        print("Gemini Soru-Cevap Hatası:", e)
+
+    return "Cevap üretilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin."
+
+
+
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     ozet = None
     duygu = None
     baslik = None
     gorsel_url = None
+    haber_metni = None
     haberler = []
     
     arama_kelimesi = request.args.get('query', '').strip()
@@ -204,11 +248,12 @@ def index():
             if url:
                 baslik, gorsel_url, metin = haber_metni_cek(url)
                 if metin and len(metin) > 50:
+                    haber_metni = metin
                     ozet, duygu = ozetle_hybrid(metin, format_secimi, hedef_dil)
                 else:
                     ozet = "Haber içeriği çekilemedi veya metin çok kısa. Lütfen başka bir haber linki deneyin."
 
-    return render_template('index.html', ozet=ozet, duygu=duygu, baslik=baslik, gorsel_url=gorsel_url, haberler=haberler, arama_kelimesi=arama_kelimesi)
+    return render_template('index.html', ozet=ozet, duygu=duygu, baslik=baslik, gorsel_url=gorsel_url, haber_metni=haber_metni, haberler=haberler, arama_kelimesi=arama_kelimesi)
 
 # 🎙️ YENİ: GERÇEKÇİ KADIN SESİ (AI MP3 GENERATOR)
 @app.route('/seslendir', methods=['POST'])
@@ -238,6 +283,28 @@ def seslendir_api():
     except Exception as e:
         print("Ses hatası:", e)
         return {"error": str(e)}, 500
+
+@app.route('/soru-sor', methods=['POST'])
+def soru_sor_api():
+    try:
+        data = request.get_json()
+        haber_metni = data.get("haber_metni", "").strip()
+        soru = data.get("soru", "").strip()
+
+        if not haber_metni:
+            return {"cevap": "Haber metni bulunamadı. Lütfen önce bir haberi özetleyin."}, 400
+
+        if not soru:
+            return {"cevap": "Lütfen geçerli bir soru yazın."}, 400
+
+        # AI Fonksiyonu çağırma kısmı
+        cevap = habere_soru_sor(haber_metni, soru)
+        return {"cevap": cevap}
+
+    except Exception as e:
+        print("Soru API Hatası", e)
+        return {"cevap": "Sunucu hatası oluştu."}, 400
+
 
 @app.route('/indir', methods=['POST'])
 def indir():
