@@ -169,6 +169,50 @@
 
             </div>
 
+                        <!-- YENİ: Gizli Haber Metni Deposu (JS'in okuyabilmesi için) -->
+            {% if haber_metni %}
+            <input type="hidden" id="raw-haber-metni" value="{{ haber_metni | escape }}">
+
+            <!-- AI Chatbot Kartı -->
+            <div class="mt-8 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl">
+                <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">🤖</span>
+                        <h3 class="font-bold text-slate-200">Habere Soru Sor</h3>
+                    </div>
+                    <span class="text-xs text-slate-400 bg-slate-800 px-2.5 py-1 rounded-full border border-slate-700">AI Asistan</span>
+                </div>
+
+                <!-- Sohbet Geçmişi / Baloncuklar Alanı -->
+                <div id="chat-messages" class="space-y-3 max-h-80 overflow-y-auto mb-4 pr-2 text-sm">
+                    <div class="bg-slate-800/60 border border-slate-700/50 text-slate-300 p-3 rounded-xl max-w-[85%] leading-relaxed">
+                        👋 Merhaba! Bu haberle ilgili merak ettiğin her şeyi bana sorabilirsin.
+                    </div>
+                </div>
+
+                <!-- Soru Giriş Alanı ve Buton -->
+                <form id="chat-form" class="flex gap-2">
+                    <input 
+                        type="text" 
+                        id="chat-input" 
+                        placeholder="Örn: Bu olay ne zaman gerçekleşti?" 
+                        required
+                        class="flex-1 bg-slate-950 border border-slate-800 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 transition"
+                    >
+                    <button 
+                        type="submit" 
+                        id="chat-send-btn"
+                        class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-sm transition flex items-center gap-2 disabled:opacity-50"
+                    >
+                        <span>Gönder</span>
+                        <span>🚀</span>
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+            
+
+
             <div class="flex items-center gap-3 mb-3">
     <h3 class="text-lg font-semibold text-emerald-500">✨ AI Özeti</h3>
     
@@ -187,6 +231,101 @@
     </div>
 
     <script>
+
+                // Chatbot Form Dinleyicisi
+        document.getElementById('chat-form')?.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const inputEl = document.getElementById('chat-input');
+            const sendBtn = document.getElementById('chat-send-btn');
+            const messagesContainer = document.getElementById('chat-messages');
+            const rawHaberMetni = document.getElementById('raw-haber-metni')?.value;
+
+            const soru = inputEl.value.trim();
+            if (!soru || !rawHaberMetni) return;
+
+            // 1. Kullanıcının sorusunu ekrana baloncuk olarak ekle
+            const userMsgHTML = `
+                <div class="flex justify-end">
+                    <div class="bg-emerald-500 text-slate-950 font-medium p-3 rounded-xl max-w-[85%] leading-relaxed shadow-sm">
+                        ${escapeHTML(soru)}
+                    </div>
+                </div>
+            `;
+            messagesContainer.insertAdjacentHTML('beforeend', userMsgHTML);
+
+            // Girdiyi temizle ve yükleniyor durumunu aç
+            inputEl.value = '';
+            sendBtn.disabled = true;
+
+            // 2. Bekleme Yükleniyor (Loading) Baloncuğu
+            const loadingId = 'loading-' + Date.now();
+            const loadingHTML = `
+                <div id="${loadingId}" class="bg-slate-800/60 border border-slate-700/50 text-slate-400 p-3 rounded-xl max-w-[85%] text-xs flex items-center gap-2 animate-pulse">
+                    <span>🤔 Haber inceleniyor...</span>
+                </div>
+            `;
+            messagesContainer.insertAdjacentHTML('beforeend', loadingHTML);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            try {
+                // 3. Flask Arka Planına (/soru-sor) İsteği At
+                const response = await fetch('/soru-sor', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        haber_metni: rawHaberMetni,
+                        soru: soru
+                    })
+                });
+
+                const data = await response.json();
+
+                // Loading baloncuğunu kaldır
+                document.getElementById(loadingId)?.remove();
+
+                // 4. Yapay Zekanın Yanıtını Ekrana Bas
+                const aiMsgHTML = `
+                    <div class="bg-slate-800/60 border border-slate-700/50 text-slate-200 p-3 rounded-xl max-w-[85%] leading-relaxed">
+                        ${escapeHTML(data.cevap || 'Bir yanıt alınamadı.')}
+                    </div>
+                `;
+                messagesContainer.insertAdjacentHTML('beforeend', aiMsgHTML);
+
+            } catch (err) {
+                document.getElementById(loadingId)?.remove();
+                const errorHTML = `
+                    <div class="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl max-w-[85%] text-xs">
+                        ⚠️ Bir bağlantı hatası oluştu. Lütfen tekrar deneyin.
+                    </div>
+                `;
+                messagesContainer.insertAdjacentHTML('beforeend', errorHTML);
+            } finally {
+                sendBtn.disabled = false;
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+        });
+
+        // Güvenlik için HTML Karakter Temizleyici Yardımcı Fonksiyon
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                }[tag] || tag)
+            );
+        }
+
+
+
+
+
+
         let kütüphaneSesi = null;
 
         // Tarayıcıdaki Türkçe Kadın Sesini Otomatik Tespit Et
