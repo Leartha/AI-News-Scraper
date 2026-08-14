@@ -41,7 +41,6 @@ def setup_gemini():
     return False
 
 # --- HABER ARAMA (Bing News RSS) ---
-# --- HABER ARAMA (Bing News RSS) ---
 def haber_ara(kelime):
     haberler = []
     if not kelime:
@@ -54,8 +53,6 @@ def haber_ara(kelime):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
         response = requests.get(rss_url, headers=headers, timeout=5)
-        
-        # 'html.parser' yerine Vercel dostu 'xml' veya 'lxml-xml' kullanıyoruz
         soup = BeautifulSoup(response.content, 'xml')
             
         items = soup.find_all('item')[:5]
@@ -121,30 +118,45 @@ def haber_metni_cek(url):
         print("Haber çekme hatası:", e)
         return "", "", None
 
-# --- HYBRID ÖZETLEME ---
+# --- HYBRID ÖZETLEME (DİL VE FORMAT KESİNLEŞTİRİLDİ) ---
 def ozetle_hybrid(metin, format_secimi, hedef_dil="tr"):
-    dil_haritasi = {"tr": "Türkçe", "en": "İngilizce", "de": "Almanca", "es": "İspanyolca", "fr": "Fransızca", "it": "İtalyanca"}
+    dil_haritasi = {
+        "tr": "Türkçe",
+        "en": "İngilizce",
+        "de": "Almanca",
+        "es": "İspanyolca",
+        "fr": "Fransızca",
+        "it": "İtalyanca"
+    }
     dil_adi = dil_haritasi.get(hedef_dil, "Türkçe")
 
     prompt_haritasi = {
-        "maddeli": f"Haber metninin özünü {dil_adi} dilinde maddeler halinde (📌 simgeleriyle) özetle.",
-        "tek_cumle": f"Haber metnini {dil_adi} dilinde sadece tek ve vurucu bir cümle ile özetle.",
-        "tweet": f"Haber metninden {dil_adi} dilinde ilgi çekici 3 maddelik bir Tweet/X flood dizisi oluştur.",
-        "soru_cevap": f"Haber metninden en önemli 3 soruyu çıkar ve {dil_adi} dilinde cevapla (Soru 1: ... / Cevap 1: ...)."
+        "maddeli": "Önemli noktaları maddeler halinde (📌 simgeleriyle) sırala.",
+        "tek_cumle": "Sadece tek ve vurucu bir cümle ile özetle.",
+        "tweet": "İlgi çekici 3 maddelik bir X/Twitter flood dizisi formatında yaz.",
+        "soru_cevap": "En önemli 3 soruyu çıkar ve cevapla (Soru 1: ... / Cevap 1: ...)."
     }
 
-    secilen_format = prompt_haritasi.get(format_secimi, prompt_haritasi["maddeli"])
+    secilen_format_talimati = prompt_haritasi.get(format_secimi, prompt_haritasi["maddeli"])
 
-    system_prompt = f"""Sen uzman bir haber analistisin.
-Cevabını SADECE geçerli bir JSON formatında ver.
+    system_prompt = f"""Sen profesyonel bir haber analistisin.
+Görevin haber metnini analiz edip SADECE geçerli bir JSON objesi olarak yanıt vermektir.
+
+KESİN UYULMASI GEREKEN KURALLAR:
+1. ÇIKTI DİLİ: Yanıtının tamamını (özet metnini) KESİNLİKLE {dil_adi} dilinde yazmalısın. Haber başka dilde olsa bile özet {dil_adi} olacak.
+2. FORMAT KURALI: {secilen_format_talimati}
+
 JSON Yapısı:
 {{
   "duygu": "Pozitif" veya "Negatif" veya "Nötr",
-  "ozet": "Özet metni ({secilen_format})"
+  "ozet": "Oluşturduğun özet metni"
 }}"""
+
+    user_prompt = f"Haber Metni:\n{metin}\n\nLütfen bu haberi {dil_adi} dilinde ve istenen formatta özetle."
 
     raw_response = None
 
+    # 1. Deneme: Groq (Llama 3.3)
     try:
         groq_client = get_groq_client()
         if groq_client:
@@ -152,23 +164,24 @@ JSON Yapısı:
                 model="llama-3.3-70b-versatile",
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Haber:\n{metin}"}
+                    {"role": "user", "content": user_prompt}
                 ],
                 response_format={"type": "json_object"},
-                timeout=8
+                timeout=10
             )
             raw_response = response.choices[0].message.content
     except Exception as e:
-        print("Groq hatası: ", e)
+        print("Groq hatası:", e)
 
+    # 2. Deneme: Gemini (Yedek)
     if not raw_response:
         try:
             if setup_gemini():
                 model = genai.GenerativeModel('gemini-1.5-flash')
-                res = model.generate_content(f"{system_prompt}\n\nHaber:\n{metin}")
+                res = model.generate_content(f"{system_prompt}\n\n{user_prompt}")
                 raw_response = res.text
         except Exception as e:
-            print("Gemini Hatası: ", e)
+            print("Gemini Hatası:", e)
 
     if raw_response:
         try:
@@ -187,13 +200,8 @@ Görevin, kullanıcının sorusunu SADECE sana verilen haber metnindeki bilgiler
 Eğer sorunun cevabı haber metninde YOKSA, dürüstçe 'Bu sorunun cevabı verilen haber metninde yer almıyor.' de ve tahmin yürütme.
 Cevabın net, kısa ve anlaşılır olsun."""
 
-    user_prompt = f"""HABER METNİ:
-{haber_metni}
+    user_prompt = f"HABER METNİ:\n{haber_metni}\n\nKULLANICININ SORUSU:\n{soru}"
 
-KULLANICININ SORUSU:
-{soru}"""
-
-    # 1. Deneme: Groq
     try:
         groq_client = get_groq_client()
         if groq_client:
@@ -209,7 +217,6 @@ KULLANICININ SORUSU:
     except Exception as e:
         print("Groq Soru-Cevap Hatası:", e)
 
-    # 2. Deneme: Gemini (Yedek)
     try:
         if setup_gemini():
             model = genai.GenerativeModel('gemini-1.5-flash')
@@ -254,20 +261,17 @@ def index():
     return render_template('index.html', ozet=ozet, duygu=duygu, baslik=baslik, gorsel_url=gorsel_url, haber_metni=haber_metni, haberler=haberler, arama_kelimesi=arama_kelimesi)
 
 
-# 🎙️ VERCEL UYUMLU GERÇEKÇİ KADIN SESİ (RAM ÜZERİNDEN STREAM)
 @app.route('/seslendir', methods=['POST'])
 def seslendir_api():
     try:
         data = request.get_json(silent=True) or {}
         metin = (data.get("metin") or "").strip()
 
-        # Emojileri temizle
         metin_temiz = re.sub(r'[^\w\s,.\?!áéíóúâêîôûàèìòùäëïöüÇçĞğİıÖöŞşÜü-]', '', metin)
 
         if not metin_temiz.strip():
             return jsonify({"error": "Metin bulunamadı"}), 400
 
-        # Google'ın Doğal Türkçe Kadın Sesi ile MP3 üret (RAM belleğinde)
         tts = gTTS(text=metin_temiz, lang='tr', slow=False)
         fp = io.BytesIO()
         tts.write_to_fp(fp)
