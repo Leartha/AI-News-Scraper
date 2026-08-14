@@ -213,25 +213,21 @@
                             <span>✨ AI Haber Özeti</span>
                         </h3>
 
-                        <div class="flex items-center gap-2 bg-gray-900/60 p-1.5 rounded-xl border border-gray-700">
-                            <div class="flex items-center gap-1 px-1">
-                                <span class="text-xs">🔊</span>
-                                <input type="range" id="ses-seviyesi" min="0" max="1" step="0.1" value="1" 
-                                    class="w-16 accent-emerald-500 cursor-pointer">
+                        <!-- SES OYNATICI VE HIZ KONTROL PANELİ -->
+                        <div id="audio-panel" class="hidden mt-4 p-4 bg-slate-800/90 border border-slate-700 rounded-xl space-y-3">
+                            <!-- Ses Oynatıcı Elementi -->
+                            <audio id="main-audio-player" controls class="w-full h-10 rounded-lg"></audio>
+
+                            <!-- Hız Ayar Butonları -->
+                            <div class="flex items-center justify-between pt-1 border-t border-slate-700/60">
+                                <span class="text-xs text-slate-400 font-semibold">🎙️ Okuma Hızı:</span>
+                                <div class="flex gap-1.5" id="speed-buttons">
+                                    <button onclick="setAudioSpeed(0.5)" class="speed-btn px-2.5 py-1 text-xs rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 transition font-mono">0.5x</button>
+                                    <button onclick="setAudioSpeed(1.0)" class="speed-btn active-speed px-2.5 py-1 text-xs rounded-lg bg-emerald-500 text-slate-950 font-bold transition font-mono">1x</button>
+                                    <button onclick="setAudioSpeed(1.5)" class="speed-btn px-2.5 py-1 text-xs rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 transition font-mono">1.5x</button>
+                                    <button onclick="setAudioSpeed(2.0)" class="speed-btn px-2.5 py-1 text-xs rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 transition font-mono">2x</button>
+                                </div>
                             </div>
-
-                            <select id="hiz-secimi" 
-                                class="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 font-semibold py-1 px-1.5 rounded-lg border border-gray-600 focus:outline-none transition cursor-pointer">
-                                <option value="0.8">0.8x</option>
-                                <option value="1.0" selected>1.0x</option>
-                                <option value="1.1">1.1x</option>
-                                <option value="1.25">1.25x</option>
-                            </select>
-
-                            <button type="button" onclick="seslendir()" id="ses-btn"
-                                class="text-xs bg-gray-700 hover:bg-gray-600 text-blue-400 font-semibold py-1 px-2.5 rounded-lg border border-gray-600 flex items-center gap-1 transition cursor-pointer">
-                                🔊 Dinle
-                            </button>
                         </div>
                     </div>
 
@@ -493,52 +489,53 @@
             tıklaVeSesleriYukle();
         }
 
-        function seslendir() {
-            const btn = document.getElementById("ses-btn");
-            
-            // Eğer zaten okunuyorsa durdur
-            if (speechSynthesis.speaking) {
-                speechSynthesis.cancel();
-                btn.innerHTML = "🔊 Dinle";
-                btn.classList.remove("text-red-400");
-                btn.classList.add("text-blue-400");
-                return;
+                // SESİ OYNATMA VE HIZ AYARLAMA MANTIĞI
+        async function sesiOynat(ozetMetni) {
+            const audioPanel = document.getElementById('audio-panel');
+            const player = document.getElementById('main-audio-player');
+
+            try {
+                const response = await fetch('/seslendir', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ metin: ozetMetni })
+                });
+
+                const data = await response.json();
+
+                if (data.ses_url) {
+                    // Ses panelini görünür yap
+                    audioPanel.classList.remove('hidden');
+                    
+                    // Yeni sesi yükle ve oynat
+                    player.src = data.ses_url + '?t=' + new Date().getTime(); // Cache engelleme
+                    player.playbackRate = 1.0; // Varsayılan 1x hız
+                    setAudioSpeed(1.0); // Buton stilini sıfırla
+                    player.play();
+                } else {
+                    alert("Ses oluşturulamadı.");
+                }
+            } catch (err) {
+                console.error("Ses Hatası:", err);
+                alert("Ses yüklenirken bir sorun oluştu.");
+            }
+        }
+
+        // HIZ BUTONLARINI TETİKLEYEN FONKSİYON
+        function setAudioSpeed(speed) {
+            const player = document.getElementById('main-audio-player');
+            if (player) {
+                player.playbackRate = speed; // Doğrudan HTML5 audio hızını ayarlar
             }
 
-            let metin = document.getElementById("ozet-metni").innerText;
-            if (!metin) return;
-
-
-            // ⚡ EMOJİ VE RAPTİYELERİ TEMİZLEME ALGORİTMASI
-            // Bütün özel emojileri ve simgeleri siler, metnin akışını bozmaz.
-            metin = metin.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}📌🎯🐦❓✨]/gu, '');
-
-            const secilenHiz = parseFloat(document.getElementById("hiz-secimi").value) || 1.0;
-            const secilenSes = parseFloat(document.getElementById("ses-seviyesi").value) ?? 1.0;
-
-            const utterance = new SpeechSynthesisUtterance(metin);
-            utterance.lang = "tr-TR";
-            utterance.rate = secilenHiz;
-            utterance.volume = secilenSes;
-
-            // Eğer doğal kadın sesi bulunduysa onu atıyoruz
-            if (kütüphaneSesi) {
-                utterance.voice = kütüphaneSesi;
-            }
-
-            utterance.onstart = function() {
-                btn.innerHTML = "⏹️ Durdur";
-                btn.classList.remove("text-blue-400");
-                btn.classList.add("text-red-400");
-            };
-
-            utterance.onend = function() {
-                btn.innerHTML = "🔊 Dinle";
-                btn.classList.remove("text-red-400");
-                btn.classList.add("text-blue-400");
-            };
-
-            speechSynthesis.speak(utterance);
+            // Butonların renklerini/aktiflik durumunu güncelle
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                if (btn.innerText === `${speed}x` || (speed === 1.0 && btn.innerText === '1x')) {
+                    btn.className = "speed-btn active-speed px-2.5 py-1 text-xs rounded-lg bg-emerald-500 text-slate-950 font-bold transition font-mono";
+                } else {
+                    btn.className = "speed-btn px-2.5 py-1 text-xs rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 transition font-mono";
+                }
+            });
         }
 
 
