@@ -12,14 +12,14 @@
         }
     </script>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-300 font-sans pb-20">
+<body class="bg-slate-950 text-slate-100 min-h-screen transition-colors duration-300 font-sans pb-20 overflow-x-hidden">
 
     <!-- 1. EN ÜST KATMAN: SABİT DARK MODE BUTONU (SAĞ ÜST) -->
     <button 
         id="theme-toggle" 
         type="button" 
         title="Temayı Değiştir"
-        class="fixed top-6 right-6 z-[9999] w-12 h-12 rounded-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer"
+        class="fixed top-6 right-6 z-[9999] w-12 h-12 rounded-full bg-slate-800 text-slate-100 border border-slate-700 shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer"
     >
         <span id="theme-toggle-dark-icon" class="text-xl leading-none">🌙</span>
         <span id="theme-toggle-light-icon" class="text-xl leading-none hidden">☀️</span>
@@ -28,7 +28,7 @@
     <!-- 2. EN ÜST KATMAN: KOLEKSİYON BUTONU (SOL ÜST) -->
     <button 
         onclick="toggleCollectionDrawer()" 
-        class="fixed top-6 left-6 z-[9999] px-4 py-2.5 rounded-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2 text-sm font-semibold cursor-pointer"
+        class="fixed top-6 left-6 z-[9999] px-4 py-2.5 rounded-full bg-slate-800 text-slate-100 border border-slate-700 shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2 text-sm font-semibold cursor-pointer"
     >
         <span>📜</span>
         <span class="hidden sm:inline">Koleksiyonum</span>
@@ -38,17 +38,17 @@
     <!-- 3. SOL AÇILIR YAN MENÜ (KOLEKSİYON DRAWER) -->
     <div id="drawer-overlay" onclick="toggleCollectionDrawer()" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[10000] hidden transition-opacity"></div>
 
-    <div id="collection-drawer" class="fixed top-0 left-0 h-full w-80 md:w-96 bg-white dark:bg-slate-900 z-[10001] shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col border-r border-slate-200 dark:border-slate-800">
-        <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-            <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+    <div id="collection-drawer" class="fixed top-0 left-0 h-full w-80 md:w-96 bg-slate-900 z-[10001] shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col border-r border-slate-800">
+        <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+            <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2">
                 <span>📚</span> Kaydedilen Özetler
             </h3>
-            <button onclick="toggleCollectionDrawer()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl font-bold">&times;</button>
+            <button onclick="toggleCollectionDrawer()" class="text-slate-400 hover:text-slate-200 text-2xl font-bold">&times;</button>
         </div>
         <div id="collection-list" class="flex-1 overflow-y-auto p-4 space-y-3">
             <!-- JS ile dolacak -->
         </div>
-        <div class="p-4 border-t border-slate-200 dark:border-slate-800">
+        <div class="p-4 border-t border-slate-800">
             <button onclick="clearCollection()" class="w-full py-2 text-xs font-semibold text-rose-500 hover:text-rose-600 hover:bg-rose-950/30 rounded-lg transition">
                 Geçmişi Temizle
             </button>
@@ -63,36 +63,61 @@
             <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
                 AI Haber Analisti
             </h1>
-            <p class="text-slate-500 dark:text-slate-400 mt-2 text-sm md:text-base">Haberleri anında tara, özetle, dinle ve sorular sor.</p>
+            <p class="text-slate-400 mt-2 text-sm md:text-base">Haberleri anında tara, özetle, dinle ve sorular sor.</p>
         </div>
 
         <!-- ARAMA VE LINK GİRİŞ FORMU -->
-        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 mb-8 space-y-6">
+        <div class="bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800 mb-8 space-y-6 overflow-hidden">
             
             <!-- Arama Kutusu -->
             <form action="/" method="GET" class="flex gap-2">
-                <input type="text" name="query" value="{{ arama_kelimesi or '' }}" placeholder="Gündemdeki bir konuyu veya haberi aratın..." class="flex-1 px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                <button type="submit" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition text-sm flex items-center gap-2">
+                <input type="text" name="query" value="{{ arama_kelimesi or '' }}" placeholder="Gündemdeki bir konuyu veya haberi aratın..." class="flex-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-100">
+                <button type="submit" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition text-sm flex items-center gap-2 shrink-0">
                     <span>🔍</span> Ara
                 </button>
             </form>
 
-            <!-- Arama Sonuçları -->
+            <!-- ORTAK FORMAT VE DİL SEÇİM PANELİ -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Özet Formatı</label>
+                    <select id="global-format" name="format" form="url-form" class="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="maddeli">📌 Maddeler Halinde</option>
+                        <option value="tek_cumle">🎯 Tek Cümle Özet</option>
+                        <option value="tweet">🐦 Tweet / X Flood</option>
+                        <option value="soru_cevap">❓ Soru - Cevap</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Hedef Dil (Çeviri / Özet)</label>
+                    <select id="global-dil" name="dil" form="url-form" class="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="tr">🇹🇷 Türkçe</option>
+                        <option value="en">🇬🇧 İngilizce</option>
+                        <option value="de">🇩🇪 Almanca</option>
+                        <option value="es">🇪🇸 İspanyolca</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Arama Sonuçları Listesi -->
             {% if haberler %}
-            <div class="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <div class="space-y-3 pt-4 border-t border-slate-800">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Bulunan Haberler</h3>
-                <div class="grid gap-2">
+                <div class="grid gap-3">
                     {% for h in haberler %}
-                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 flex items-center justify-between gap-4">
-                        <div class="truncate">
-                            <a href="{{ h.url }}" target="_blank" class="font-medium text-sm hover:underline text-indigo-600 dark:text-indigo-400 block truncate">{{ h.title }}</a>
-                            <span class="text-[11px] text-slate-400">{{ h.source }} • {{ h.date }}</span>
+                    <div class="p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 overflow-hidden">
+                        <div class="min-w-0 flex-1">
+                            <a href="{{ h.url }}" target="_blank" class="font-medium text-sm hover:underline text-indigo-400 block truncate" title="{{ h.title }}">{{ h.title }}</a>
+                            <span class="text-[11px] text-slate-400 block mt-1">{{ h.source }} • {{ h.date }}</span>
                         </div>
-                        <form action="/" method="POST" class="shrink-0">
+                        <form action="/" method="POST" class="shrink-0 search-result-form">
                             <input type="hidden" name="islem_turu" value="ozetle">
                             <input type="hidden" name="url" value="{{ h.url }}">
-                            <button type="submit" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition">
-                                Özetle ⚡
+                            <input type="hidden" name="format" class="search-format-input" value="maddeli">
+                            <input type="hidden" name="dil" class="search-dil-input" value="tr">
+                            <button type="submit" onclick="syncOptions(this)" class="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
+                                <span>Özetle</span> ⚡
                             </button>
                         </form>
                     </div>
@@ -102,34 +127,12 @@
             {% endif %}
 
             <!-- Doğrudan URL ile Özetleme Formu -->
-            <form action="/" method="POST" class="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <form id="url-form" action="/" method="POST" class="space-y-4 pt-4 border-t border-slate-800">
                 <input type="hidden" name="islem_turu" value="ozetle">
                 
                 <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Haber Linki (URL)</label>
-                    <input type="url" name="url" required placeholder="https://www.haber.com/detay-123" class="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Format</label>
-                        <select name="format" class="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm">
-                            <option value="maddeli">📌 Maddeler Halinde</option>
-                            <option value="tek_cumle">🎯 Tek Cümle Özet</option>
-                            <option value="tweet">🐦 Tweet / X Flood</option>
-                            <option value="soru_cevap">❓ Soru - Cevap</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Hedef Dil</label>
-                        <select name="dil" class="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm">
-                            <option value="tr">🇹🇷 Türkçe</option>
-                            <option value="en">🇬🇧 İngilizce</option>
-                            <option value="de">🇩🇪 Almanca</option>
-                            <option value="es">🇪🇸 İspanyolca</option>
-                        </select>
-                    </div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Veya Doğrudan Haber Linki (URL)</label>
+                    <input type="url" name="url" placeholder="https://www.haber.com/detay-123" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-100">
                 </div>
 
                 <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl shadow-lg transition">
@@ -140,21 +143,21 @@
 
         <!-- ÖZET SONUÇ KARTI -->
         {% if ozet %}
-        <div class="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 space-y-6">
+        <div class="bg-slate-900 p-6 md:p-8 rounded-2xl shadow-2xl border border-slate-800 space-y-6">
             
             <!-- HABER BAŞLIĞI VE DUYGU ROZETİ -->
             {% if baslik %}
-            <div class="flex items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
-                <h2 id="current-baslik" class="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-100 leading-snug">
+            <div class="flex items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                <h2 id="current-baslik" class="text-xl md:text-2xl font-bold text-slate-100 leading-snug">
                     {{ baslik }}
                 </h2>
 
                 {% if duygu %}
                 <div class="shrink-0">
                     <span id="current-duygu" class="px-3.5 py-1.5 rounded-full text-xs font-black shadow-sm border flex items-center gap-1.5 uppercase tracking-wide
-                        {% if duygu == 'Pozitif' %} bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30
-                        {% elif duygu == 'Negatif' %} bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30
-                        {% else %} bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30 {% endif %}">
+                        {% if duygu == 'Pozitif' %} bg-emerald-500/10 text-emerald-400 border-emerald-500/30
+                        {% elif duygu == 'Negatif' %} bg-rose-500/10 text-rose-400 border-rose-500/30
+                        {% else %} bg-slate-500/10 text-slate-400 border-slate-500/30 {% endif %}">
                         {% if duygu == 'Pozitif' %}😊{% elif duygu == 'Negatif' %}😡{% else %}😐{% endif %}
                         <span>{{ duygu }}</span>
                     </span>
@@ -173,12 +176,12 @@
             <div id="raw-haber-metni" class="hidden">{{ haber_metni or '' }}</div>
 
             <!-- Özet Metni Görünür Alanı -->
-            <div class="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line text-base font-medium">
+            <div class="prose dark:prose-invert max-w-none text-slate-300 leading-relaxed whitespace-pre-line text-base font-medium">
                 {{ ozet }}
             </div>
 
             <!-- EYLEM BUTONLARI & SES PANELİ -->
-            <div class="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
+            <div class="pt-4 border-t border-slate-800 space-y-4">
                 <div class="flex flex-wrap gap-3 items-center justify-between">
                     <button onclick="sesiOynat()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer">
                         <span>🔊</span> Özeti Dinle
@@ -190,31 +193,31 @@
                 </div>
 
                 <!-- SES PLAYER & HIZ BUTONLARI -->
-                <div id="audio-panel" class="hidden p-4 bg-slate-100 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl space-y-3">
+                <div id="audio-panel" class="hidden p-4 bg-slate-800/80 border border-slate-700 rounded-xl space-y-3">
                     <audio id="main-audio-player" controls class="w-full h-10 rounded-lg"></audio>
 
-                    <div class="flex items-center justify-between pt-1 border-t border-slate-200 dark:border-slate-700">
-                        <span class="text-xs text-slate-500 dark:text-slate-400 font-semibold">🎙️ Okuma Hızı:</span>
+                    <div class="flex items-center justify-between pt-1 border-t border-slate-700">
+                        <span class="text-xs text-slate-400 font-semibold">🎙️ Okuma Hızı:</span>
                         <div class="flex gap-1.5">
-                            <button onclick="setAudioSpeed(0.5)" class="speed-btn px-2.5 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 transition font-mono">0.5x</button>
+                            <button onclick="setAudioSpeed(0.5)" class="speed-btn px-2.5 py-1 text-xs rounded-lg bg-slate-700 text-slate-200 transition font-mono">0.5x</button>
                             <button onclick="setAudioSpeed(1.0)" class="speed-btn active-speed px-2.5 py-1 text-xs rounded-lg bg-emerald-500 text-slate-950 font-bold transition font-mono">1x</button>
-                            <button onclick="setAudioSpeed(1.5)" class="speed-btn px-2.5 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 transition font-mono">1.5x</button>
-                            <button onclick="setAudioSpeed(2.0)" class="speed-btn px-2.5 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 transition font-mono">2x</button>
+                            <button onclick="setAudioSpeed(1.5)" class="speed-btn px-2.5 py-1 text-xs rounded-lg bg-slate-700 text-slate-200 transition font-mono">1.5x</button>
+                            <button onclick="setAudioSpeed(2.0)" class="speed-btn px-2.5 py-1 text-xs rounded-lg bg-slate-700 text-slate-200 transition font-mono">2x</button>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- CHATBOT: HABERE SORU SOR -->
-            <div class="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4">
+            <div class="mt-8 pt-6 border-t border-slate-800 space-y-4">
                 <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
                     <span>💬</span> Bu Haber Hakkında Soru Sor
                 </h3>
                 <div class="flex gap-2">
-                    <input type="text" id="chat-question" placeholder="Örn: Bu olay ne zaman gerçekleşti?" class="flex-1 px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="text" id="chat-question" placeholder="Örn: Bu olay ne zaman gerçekleşti?" class="flex-1 px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-100">
                     <button onclick="askQuestion()" class="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm rounded-xl transition">Sor</button>
                 </div>
-                <div id="chat-response" class="hidden p-4 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/50 text-sm leading-relaxed"></div>
+                <div id="chat-response" class="hidden p-4 rounded-xl bg-indigo-950/40 border border-indigo-800/50 text-sm leading-relaxed text-indigo-200"></div>
             </div>
 
         </div>
@@ -224,6 +227,16 @@
 
     <!-- JAVASCRIPT KODLARI -->
     <script>
+        // ARAMA SONUÇLARINDA SEÇİLİ FORMAT VE DİLİ BİRLEŞTİRME
+        function syncOptions(buttonBtn) {
+            const form = buttonBtn.closest('form');
+            const selectedFormat = document.getElementById('global-format').value;
+            const selectedDil = document.getElementById('global-dil').value;
+
+            form.querySelector('.search-format-input').value = selectedFormat;
+            form.querySelector('.search-dil-input').value = selectedDil;
+        }
+
         // DARK MODE MANTIĞI
         (function() {
             const themeToggleBtn = document.getElementById('theme-toggle');
@@ -298,7 +311,7 @@
                 if (btn.innerText === `${speed}x` || (speed === 1.0 && btn.innerText === '1x')) {
                     btn.className = "speed-btn active-speed px-2.5 py-1 text-xs rounded-lg bg-emerald-500 text-slate-950 font-bold transition font-mono";
                 } else {
-                    btn.className = "speed-btn px-2.5 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 transition font-mono";
+                    btn.className = "speed-btn px-2.5 py-1 text-xs rounded-lg bg-slate-700 text-slate-200 transition font-mono";
                 }
             });
         }
@@ -396,15 +409,15 @@
             }
 
             listContainer.innerHTML = collection.map(item => `
-                <div class="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+                <div class="p-3.5 bg-slate-800/60 rounded-xl border border-slate-700 space-y-2">
                     <div class="flex items-start justify-between gap-2">
-                        <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 line-clamp-2">${item.baslik}</h4>
+                        <h4 class="font-bold text-xs text-slate-200 line-clamp-2">${item.baslik}</h4>
                         <button onclick="deleteCollectionItem(${item.id})" class="text-slate-400 hover:text-rose-500 font-bold">&times;</button>
                     </div>
-                    <p class="text-xs text-slate-600 dark:text-slate-300 line-clamp-3">${item.ozet}</p>
-                    <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
+                    <p class="text-xs text-slate-300 line-clamp-3">${item.ozet}</p>
+                    <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-700/50">
                         <span>${item.tarih}</span>
-                        <span class="font-semibold text-emerald-500">${item.duygu}</span>
+                        <span class="font-semibold text-emerald-400">${item.duygu}</span>
                     </div>
                 </div>
             `).join('');
