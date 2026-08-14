@@ -59,6 +59,20 @@
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen font-sans flex flex-col items-center justify-start py-10 px-4 md:px-8 w-full border-box">
 
+        <!-- SABİT TEMA BUTONU-->
+    <button 
+        id="theme-toggle" 
+        type="button" 
+        title="Temayı Değiştir"
+        class="fixed top-6 right-6 z-[9999] w-12 h-12 rounded-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer"
+    >
+        <!-- Ay İkonu (Aydınlık Moddayken Gösterilir) -->
+        <span id="theme-toggle-dark-icon" class="text-xl leading-none">🌙</span>
+
+        <!-- Güneş İkonu (Karanlık Moddayken Gösterilir) -->
+        <span id="theme-toggle-light-icon" class="text-xl leading-none hidden">☀️</span>
+    </button>
+
     <div class="w-full max-w-5xl mx-auto bg-slate-800/80 backdrop-blur-md rounded-2xl shadow-2xl p-6 md:p-10 border border-slate-700/60 relative">
         
         <div class="text-center mb-8">
@@ -344,17 +358,30 @@
             <div class="flex items-center gap-3 mb-3">
     <h3 class="text-lg font-semibold text-emerald-500">✨ AI Özeti</h3>
     
-                <!-- Duygu Durumu Rozeti -->
-                {% if duygu %}
-                    <span class="px-3 py-1 rounded-full text-xs font-bold 
-                        {% if duygu == 'Pozitif' %} bg-green-100 text-green-800 border border-green-300
-                        {% elif duygu == 'Negatif' %} bg-red-100 text-red-800 border border-red-300
-                        {% else %} bg-gray-100 text-gray-800 border border-gray-300 {% endif %}">
-                        😊 {{ duygu }}
-                    </span>
-                {% endif %}
-            </div>
+                <!-- HABER BAŞLIĞI VE SAĞA YASLANMIŞ DUYGU ROZETİ -->
+{% if baslik %}
+<div class="flex items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-200 dark:border-slate-800">
+    
+        <!-- Sol Taraf: Haber Başlığı -->
+        <h2 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-100 leading-snug">
+            {{ baslik }}
+        </h2>
+
+        <!-- Sağ Taraf: Sağa Yaslanmış Duygu Durumu Rozeti -->
+        {% if duygu %}
+        <div class="shrink-0">
+            <span class="px-3.5 py-1.5 rounded-full text-xs font-black shadow-sm border flex items-center gap-1.5 uppercase tracking-wide
+                {% if duygu == 'Pozitif' %} bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30
+                {% elif duygu == 'Negatif' %} bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30
+                {% else %} bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30 {% endif %}">
+                {% if duygu == 'Pozitif' %}😊{% elif duygu == 'Negatif' %}😡{% else %}😐{% endif %}
+                <span>{{ duygu }}</span>
+            </span>
+        </div>
         {% endif %}
+
+    </div>
+    {% endif %}
 
     </div>
 
@@ -481,6 +508,7 @@
             let metin = document.getElementById("ozet-metni").innerText;
             if (!metin) return;
 
+
             // ⚡ EMOJİ VE RAPTİYELERİ TEMİZLEME ALGORİTMASI
             // Bütün özel emojileri ve simgeleri siler, metnin akışını bozmaz.
             metin = metin.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}📌🎯🐦❓✨]/gu, '');
@@ -519,87 +547,42 @@
             window.print();
         }
 
-                        // SAĞ ÜST YUVARLAK TEMA BUTONU MANTIĞI
-        const themeToggleBtn = document.getElementById('theme-toggle');
-        const darkIcon = document.getElementById('theme-toggle-dark-icon');
-        const lightIcon = document.getElementById('theme-toggle-light-icon');
+        // ==================== TAM GARANTİLİ DARK MODE SCRIPT ====================
+        (function() {
+            const themeToggleBtn = document.getElementById('theme-toggle');
+            const darkIcon = document.getElementById('theme-toggle-dark-icon');
+            const lightIcon = document.getElementById('theme-toggle-light-icon');
 
-        function updateIcons(isDark) {
-            if (isDark) {
-                darkIcon?.classList.add('hidden');
-                lightIcon?.classList.remove('hidden');
-            } else {
-                lightIcon?.classList.add('hidden');
-                darkIcon?.classList.remove('hidden');
+            function applyTheme(isDark) {
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                    darkIcon?.classList.add('hidden');
+                    lightIcon?.classList.remove('hidden');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    lightIcon?.classList.add('hidden');
+                    darkIcon?.classList.remove('hidden');
+                }
             }
-        }
 
-        function initTheme() {
-            const userTheme = localStorage.getItem('theme');
+            // Sayfa Yüklendiğinde
+            const savedTheme = localStorage.getItem('theme');
             const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            const isDark = userTheme === 'dark' || (!userTheme && systemDark);
+            const isInitialDark = savedTheme === 'dark' || (!savedTheme && systemDark);
 
-            if (isDark) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
+            applyTheme(isInitialDark);
+
+            // Butona Tıklandığında
+            if (themeToggleBtn) {
+                themeToggleBtn.addEventListener('click', function() {
+                    const isCurrentlyDark = document.documentElement.classList.contains('dark');
+                    const newDarkState = !isCurrentlyDark;
+                    
+                    applyTheme(newDarkState);
+                    localStorage.setItem('theme', newDarkState ? 'dark' : 'light');
+                });
             }
-            updateIcons(isDark);
-        }
-
-        themeToggleBtn?.addEventListener('click', function() {
-            const isDark = document.documentElement.classList.toggle('dark');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            updateIcons(isDark);
-        });
-
-        // Sayfa yüklendiğinde çalıştır
-        initTheme();
-
-        // Butona Tıklandığında Temayı Değiştir ve Hafızaya Kaydet
-        themeToggleBtn?.addEventListener('click', function () {
-            const isDark = document.documentElement.classList.toggle('dark');
-
-            if (isDark) {
-                localStorage.setItem('theme', 'dark');
-                darkIcon?.classList.add('hidden');
-                lightIcon?.classList.remove('hidden');
-            } else {
-                localStorage.setItem('theme', 'light');
-                lightIcon?.classList.add('hidden');
-                darkIcon?.classList.remove('hidden');
-            }
-        });
-
-        // Sayfa açılır açılmaz çalıştır
-        applyInitialTheme();
-
-
-                // KARANLIK MOD KONTROLÜ
-        function initTheme() {
-            const userTheme = localStorage.getItem('theme');
-            const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-            if (userTheme === 'dark' || (!userTheme && systemDark)) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-        }
-
-        // Butona tıklandığında temayı değiştir
-        document.getElementById('theme-toggle')?.addEventListener('click', function() {
-            if (document.documentElement.classList.contains('dark')) {
-                document.documentElement.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
-            } else {
-                document.documentElement.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
-            }
-        });
-
-        // Sayfa yüklendiğinde çalıştır
-        initTheme();
+        })();
     </script>
 
 </body>
