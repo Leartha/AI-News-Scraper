@@ -227,14 +227,42 @@
 
     <!-- JAVASCRIPT KODLARI -->
     <script>
-        // ARAMA SONUÇLARINDA SEÇİLİ FORMAT VE DİLİ BİRLEŞTİRME
+        // ARAMA SONUÇLARINDA VE LINK FORMUNDA SEÇİLİ FORMAT VE DİLİ BİRLEŞTİRME
         function syncOptions(buttonBtn) {
             const form = buttonBtn.closest('form');
             const selectedFormat = document.getElementById('global-format').value;
             const selectedDil = document.getElementById('global-dil').value;
 
-            form.querySelector('.search-format-input').value = selectedFormat;
-            form.querySelector('.search-dil-input').value = selectedDil;
+            let formatInput = form.querySelector('.search-format-input');
+            let dilInput = form.querySelector('.search-dil-input');
+
+            if (formatInput) formatInput.value = selectedFormat;
+            if (dilInput) dilInput.value = selectedDil;
+
+            document.getElementById('url-form')?.addEventListener('submit', function(e) {
+                const selectedFormat = document.getElementById('global-format').value;
+                const selectedDil = document.getElementById('global-dil').value;
+
+                // Gizli inputlar yoksa oluşturup forma ekle
+                let formatInput = this.querySelector('input[name="format"]');
+                let dilInput = this.querySelector('input[name="dil"]');
+
+                if (!formatInput) {
+                    formatInput = document.createElement('input');
+                    formatInput.type = 'hidden';
+                    formatInput.name = 'format';
+                    this.appendChild(formatInput);
+                }
+                if (!dilInput) {
+                    dilInput = document.createElement('input');
+                    dilInput.type = 'hidden';
+                    dilInput.name = 'dil';
+                    this.appendChild(dilInput);
+                }
+
+                formatInput.value = selectedFormat;
+                dilInput.value = selectedDil;
+            });
         }
 
         // DARK MODE MANTIĞI
