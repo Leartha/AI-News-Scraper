@@ -9,6 +9,10 @@ from bs4 import BeautifulSoup
 from groq import Groq
 import google.generativeai as genai
 from gtts import gTTS
+import warnings
+from bs4 import XMLParsedAsHTMLWarning
+
+warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
 app = Flask(__name__)
 
@@ -37,6 +41,7 @@ def setup_gemini():
     return False
 
 # --- HABER ARAMA (Bing News RSS) ---
+# --- HABER ARAMA (Bing News RSS) ---
 def haber_ara(kelime):
     haberler = []
     if not kelime:
@@ -49,21 +54,19 @@ def haber_ara(kelime):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
         response = requests.get(rss_url, headers=headers, timeout=5)
-        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # 'html.parser' yerine Vercel dostu 'xml' veya 'lxml-xml' kullanıyoruz
+        soup = BeautifulSoup(response.content, 'xml')
             
         items = soup.find_all('item')[:5]
 
         for item in items:
             title_tag = item.find('title')
             link_tag = item.find('link')
-            pub_date_tag = item.find('pubdate') or item.find('pubDate')
+            pub_date_tag = item.find('pubDate') or item.find('pubdate')
 
             title = title_tag.get_text().strip() if title_tag else 'Başlık Yok'
-            
-            link = ""
-            if link_tag:
-                link = link_tag.get_text().strip() if link_tag.get_text() else ""
-
+            link = link_tag.get_text().strip() if link_tag else ''
             pub_date = pub_date_tag.get_text()[:16] if pub_date_tag else ''
 
             source = 'Haber Kaynağı'
