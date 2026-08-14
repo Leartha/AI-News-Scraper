@@ -260,8 +260,7 @@ def index():
 def seslendir_api():
     try:
         data = request.get_json()
-        metin = data.get("metin", "")
-        dil = data.get("dil", "tr")
+        metin = data.get("metin", "").strip()
 
         # Emojileri temizle
         metin_temiz = re.sub(r'[^\w\s,.\?!áéíóúâêîôûàèìòùäëïöüÇçĞğİıÖöŞşÜü-]', '', metin)
@@ -270,7 +269,7 @@ def seslendir_api():
             return {"error": "Metin bulunamadı"}, 400
 
         # Google'ın Doğal Türkçe Kadın Sesi ile MP3 üret
-        tts = gTTS(text=metin_temiz, lang=dil, slow=False)
+        tts = gTTS(text=metin_temiz, lang='tr', slow=False)
         fp = io.BytesIO()
         tts.write_to_fp(fp)
         fp.seek(0)
