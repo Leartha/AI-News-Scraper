@@ -3,14 +3,12 @@ import json
 import io
 import re
 import urllib.parse
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template, request, send_file, jsonify
 import requests
 from bs4 import BeautifulSoup
 from groq import Groq
 import google.generativeai as genai
 from gtts import gTTS
-import io
-import re
 
 app = Flask(__name__)
 
@@ -60,11 +58,11 @@ def haber_ara(kelime):
             link_tag = item.find('link')
             pub_date_tag = item.find('pubdate') or item.find('pubDate')
 
-            title = title_tag.get_text() if title_tag else 'Başlık Yok'
+            title = title_tag.get_text().strip() if title_tag else 'Başlık Yok'
             
             link = ""
             if link_tag:
-                link = link_tag.get_text().strip() if link_tag.get_text() else str(link_tag.next_sibling).strip()
+                link = link_tag.get_text().strip() if link_tag.get_text() else ""
 
             pub_date = pub_date_tag.get_text()[:16] if pub_date_tag else ''
 
@@ -148,13 +146,13 @@ JSON Yapısı:
         groq_client = get_groq_client()
         if groq_client:
             response = groq_client.chat.completions.create(
-                model ="llama-3.3-70b-versatile",
+                model="llama-3.3-70b-versatile",
                 messages=[
-                    {"role": "system", "content" : system_prompt},
-                    {"role": "user", "content" : f"Haber:\n{metin}"}
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Haber:\n{metin}"}
                 ],
                 response_format={"type": "json_object"},
-                timeout = 8
+                timeout=8
             )
             raw_response = response.choices[0].message.content
     except Exception as e:
@@ -192,13 +190,13 @@ Cevabın net, kısa ve anlaşılır olsun."""
 KULLANICININ SORUSU:
 {soru}"""
 
-    #1. Deneme: Groq
+    # 1. Deneme: Groq
     try:
         groq_client = get_groq_client()
         if groq_client:
             response = groq_client.chat.completions.create(
-                model = "llama-3.3-70b-versatile",
-                messages = [
+                model="llama-3.3-70b-versatile",
+                messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
@@ -208,19 +206,16 @@ KULLANICININ SORUSU:
     except Exception as e:
         print("Groq Soru-Cevap Hatası:", e)
 
-    #2. Denem: Gemini (Yedek)
+    # 2. Deneme: Gemini (Yedek)
     try:
         if setup_gemini():
             model = genai.GenerativeModel('gemini-1.5-flash')
             res = model.generate_content(f"{system_prompt}\n\n{user_prompt}")
             return res.text
-
     except Exception as e:
         print("Gemini Soru-Cevap Hatası:", e)
 
     return "Cevap üretilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin."
-
-
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -255,20 +250,21 @@ def index():
 
     return render_template('index.html', ozet=ozet, duygu=duygu, baslik=baslik, gorsel_url=gorsel_url, haber_metni=haber_metni, haberler=haberler, arama_kelimesi=arama_kelimesi)
 
-# 🎙️ YENİ: GERÇEKÇİ KADIN SESİ (AI MP3 GENERATOR)
+
+# 🎙️ VERCEL UYUMLU GERÇEKÇİ KADIN SESİ (RAM ÜZERİNDEN STREAM)
 @app.route('/seslendir', methods=['POST'])
 def seslendir_api():
     try:
-        data = request.get_json()
-        metin = data.get("metin", "").strip()
+        data = request.get_json(silent=True) or {}
+        metin = (data.get("metin") or "").strip()
 
         # Emojileri temizle
         metin_temiz = re.sub(r'[^\w\s,.\?!áéíóúâêîôûàèìòùäëïöüÇçĞğİıÖöŞşÜü-]', '', metin)
 
         if not metin_temiz.strip():
-            return {"error": "Metin bulunamadı"}, 400
+            return jsonify({"error": "Metin bulunamadı"}), 400
 
-        # Google'ın Doğal Türkçe Kadın Sesi ile MP3 üret
+        # Google'ın Doğal Türkçe Kadın Sesi ile MP3 üret (RAM belleğinde)
         tts = gTTS(text=metin_temiz, lang='tr', slow=False)
         fp = io.BytesIO()
         tts.write_to_fp(fp)
@@ -281,28 +277,28 @@ def seslendir_api():
         )
     except Exception as e:
         print("Ses hatası:", e)
-        return {"error": str(e)}, 500
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/soru-sor', methods=['POST'])
 def soru_sor_api():
     try:
-        data = request.get_json()
-        haber_metni = data.get("haber_metni", "").strip()
-        soru = data.get("soru", "").strip()
+        data = request.get_json(silent=True) or {}
+        haber_metni = (data.get("haber_metni") or "").strip()
+        soru = (data.get("soru") or "").strip()
 
         if not haber_metni:
-            return {"cevap": "Haber metni bulunamadı. Lütfen önce bir haberi özetleyin."}, 400
+            return jsonify({"cevap": "Haber metni bulunamadı. Lütfen önce bir haberi özetleyin."}), 400
 
         if not soru:
-            return {"cevap": "Lütfen geçerli bir soru yazın."}, 400
+            return jsonify({"cevap": "Lütfen geçerli bir soru yazın."}), 400
 
-        # AI Fonksiyonu çağırma kısmı
         cevap = habere_soru_sor(haber_metni, soru)
-        return {"cevap": cevap}
+        return jsonify({"cevap": cevap})
 
     except Exception as e:
         print("Soru API Hatası", e)
-        return {"cevap": "Sunucu hatası oluştu."}, 400
+        return jsonify({"cevap": "Sunucu hatası oluştu."}), 500
 
 
 @app.route('/indir', methods=['POST'])
@@ -319,7 +315,6 @@ def indir():
         mimetype="text/plain"
     )
 
-app = app
 
 if __name__ == '__main__':
     app.run(debug=True)
