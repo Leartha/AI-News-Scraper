@@ -126,7 +126,6 @@ def okuma_suresi_hesapla(metin):
     dakika = round(kelime_sayisi / 200)
     return dakika if dakika > 0 else 1
 
-
 # --- HYBRID ÖZETLEME (DİL VE FORMAT KESİNLEŞTİRİLDİ) ---
 def ozetle_hybrid(metin, format_secimi, hedef_dil="tr"):
     dil_haritasi = {
@@ -346,6 +345,35 @@ def indir():
         mimetype="text/plain"
     )
 
+@app.route('/sohbet', methods=['POST'])
+def sohbet():
+    data = request.json
+    soru = data.get('soru')
+    haber_metni = data.get('haber_metni')
+
+    #1. Aşama: Sadece haber metni içinde ara
+    ilk_prompt = f"""
+    Haber metni: {haber_metni}
+    Kullanıcının sorusu: {soru}
+    Görev: Sorunun cevabı haber metninde varsa cevapla. 
+    Eğer sorunun cevabı metinde HİÇ YOKSA, KESİNLİKLE başka bir şey yazmadan sadece 'YOK' yaz.
+    """
+
+    cevap = ozetle_hybrid(ilk_prompt)
+
+    if "YOK" in cevap.strip().upper():
+        # 2. Aşama: Metinde yoksa internette arama yap(kendi arama fonksiyonunu kullan)
+        arama_sonuclari = haber_ara(soru) # Zaten projende olan arama fonksiyonu
+
+        ikinci_prompt = f"""
+        Kullanıcının sorusu: {soru}
+        İnternet arama sonuçları: {arama_sonuclari}
+        Görev: İnternet sonuçlarına bakarak soruyu cevapla. 
+        Cevabının en başına KESİNLİKLE şu minvalde bir not ekle: "Bu bilgi haberin içinde yer almıyor, ancak internette yaptığım araştırmaya göre..."
+        """
+        cevap = ozetle_hybrid(ikinci_prompt)
+
+    return jsonify({"cevap": cevap})
 
 if __name__ == '__main__':
     app.run(debug=True)
