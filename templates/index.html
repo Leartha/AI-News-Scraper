@@ -163,8 +163,8 @@
                     </span>
                 </div>
             </div>
-
-            
+        </div>
+        
         <!-- TARAFSIZLIK VE DOĞRULUK SKORLARI -->
         {% if tarafsizlik is not none and dogruluk is not none %}
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-slate-800/50 border border-slate-700/80 rounded-xl">
@@ -202,9 +202,6 @@
             });
         </script>
         {% endif %}
-
-
-
 
 
             <!-- Görsel -->
@@ -247,17 +244,30 @@
             </div>
 
             <!-- Chatbot -->
-            <div class="mt-8 pt-6 border-t border-slate-800 space-y-4">
-                <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                    <span>💬</span> Bu Haber Hakkında Soru Sor
-                </h3>
-                <div class="flex gap-2">
-                    <input type="text" id="chat-question" placeholder="Örn: Bu olay ne zaman gerçekleşti?" class="flex-1 px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-100">
-                    <button onclick="askQuestion()" class="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm rounded-xl transition cursor-pointer">Sor</button>
+            <div class="flex flex-col h-96 bg-slate-800/50 border border-slate-700/80 rounded-xl overflow-hidden mt-4">
+                <!-- Sohbet Başlığı -->
+                <div class="p-3 bg-slate-800 border-b border-slate-700 text-slate-200 font-bold text-sm flex items-center gap-2">
+                🤖 Haber Asistanı
                 </div>
-                <div id="chat-response" class="hidden p-4 rounded-xl bg-indigo-950/40 border border-indigo-800/50 text-sm leading-relaxed text-indigo-200"></div>
+
+            <!-- Mesajlaşma Alanı -->
+            <div id="chat-box" class="flex-1 p-4 overflow-y-auto flex flex-col gap-3">
+                <!-- Başlangıç Mesajı -->
+                <div class="flex justify-start">
+                    <div class="bg-slate-700 text-slate-200 text-sm px-4 py-2 rounded-xl rounded-tl-none max-w-[85%]">
+                        Merhaba! Bu haber hakkında ne öğrenmek istersin?
+                    </div>
+                </div>
             </div>
 
+            <!-- Mesaj Yazma Alanı -->
+            <div class="p-3 bg-slate-800/80 border-t border-slate-700 flex gap-2">
+                <input type="text" id="chat-input" placeholder="Sorunuzu yazın..." 
+                    class="flex-1 bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500">
+                <button onclick="mesajGonder()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+                    Gönder
+                </button>
+            </div>
         </div>
 
     </div>
@@ -529,6 +539,67 @@
             `).join('');
         }
 
+        async function mesajGonder() {
+            const input = document.getElementById('chat-input');
+            const chatBox = document.getElementById('chat-box');
+            const soru = input.value.trim();
+            
+            // Haber metnini Python'dan HTML'e gizli bir değişkene veya doğrudan Jinja ile al
+            const haberMetni = `{{ haber_metni | safe }}`;
+
+            if (!soru) return;
+
+            // 1. Kullanıcı mesajını ekrana bas
+            chatBox.innerHTML += `
+                <div class="flex justify-end">
+                    <div class="bg-indigo-600 text-white text-sm px-4 py-2 rounded-xl rounded-tr-none max-w-[85%]">
+                        ${soru}
+                    </div>
+                </div>`;
+            input.value = '';
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // "Yazıyor..." efekti
+            const loadingId = "loading-" + Date.now();
+            chatBox.innerHTML += `
+                <div id="${loadingId}" class="flex justify-start">
+                    <div class="bg-slate-700 text-slate-400 text-sm px-4 py-2 rounded-xl rounded-tl-none italic">
+                        Cevap aranıyor...
+                    </div>
+                </div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // 2. Python'a (Backend) istek at
+            try {
+                const response = await fetch('/sohbet', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ soru: soru, haber_metni: haberMetni })
+                });
+                
+                const data = await response.json();
+                
+                // Yükleniyor yazısını sil ve bot cevabını bas
+                document.getElementById(loadingId).remove();
+                chatBox.innerHTML += `
+                    <div class="flex justify-start">
+                        <div class="bg-slate-700 text-slate-200 text-sm px-4 py-2 rounded-xl rounded-tl-none max-w-[85%] whitespace-pre-wrap">
+                            ${data.cevap}
+                        </div>
+                    </div>`;
+                chatBox.scrollTop = chatBox.scrollHeight;
+                
+            } catch (error) {
+                document.getElementById(loadingId).innerText = "Bir hata oluştu.";
+            }
+        }
+
+        // Enter tuşuyla da gönderilebilsin
+        document.getElementById('chat-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') mesajGonder();
+        });
+
+        
         document.addEventListener('DOMContentLoaded', updateCollectionCount);
     </script>
 </body>
