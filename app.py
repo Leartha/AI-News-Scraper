@@ -254,6 +254,9 @@ def index():
     haber_metni = None
     metin = None
     okuma_suresi = None
+    tarafsizlik = None
+    dogruluk = None
+    skor_aciklamasi = None
     haberler = []
     
     arama_kelimesi = request.args.get('query', '').strip()
