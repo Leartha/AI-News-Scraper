@@ -118,6 +118,15 @@ def haber_metni_cek(url):
         print("Haber çekme hatası:", e)
         return "", "", None
 
+# --- KULLANICININ METNİ ORTALAMA OKUYACAĞI SÜRE ---
+def okuma_suresi_hesapla(metin):
+    if not metin:
+        return 1
+    kelime_sayisi = len(metin.split())
+    dakika = round(kelime_sayisi / 200)
+    return dakika if dakika > 0 else 1
+
+
 # --- HYBRID ÖZETLEME (DİL VE FORMAT KESİNLEŞTİRİLDİ) ---
 def ozetle_hybrid(metin, format_secimi, hedef_dil="tr"):
     dil_haritasi = {
@@ -143,12 +152,15 @@ def ozetle_hybrid(metin, format_secimi, hedef_dil="tr"):
 Görevin haber metnini analiz edip SADECE geçerli bir JSON objesi olarak yanıt vermektir.
 
 KESİN UYULMASI GEREKEN KURALLAR:
-1. ÇIKTI DİLİ: Yanıtının tamamını (özet metnini) KESİNLİKLE {dil_adi} dilinde yazmalısın. Haber başka dilde olsa bile özet {dil_adi} olacak.
+1. ÇIKTI DİLİ: Yanıtının tamamını KESİNLİKLE {dil_adi} dilinde yazmalısın.
 2. FORMAT KURALI: {secilen_format_talimati}
 
 JSON Yapısı:
 {{
   "duygu": "Pozitif" veya "Negatif" veya "Nötr",
+  "tarafsizlik_skoru": 1-10 arası tam sayı (1: Aşırı taraf/yönlendirici, 10: Tamamen nesnel),
+  "dogruluk_skoru": 1-10 arası tam sayı (1: Zayıf/iddia niteliğinde, 10: Verili/kaynaklı haber),
+  "skor_aciklamasi": "Skorların nedeni hakkında 1 cümlelik kısa açıklama.",
   "ozet": "Oluşturduğun özet metni"
 }}"""
 
@@ -187,11 +199,17 @@ JSON Yapısı:
         try:
             cleaned = re.sub(r'```json|```', '', raw_response).strip()
             data = json.loads(cleaned)
-            return data.get("ozet", "Özet oluşturulamadı."), data.get("duygu", "Nötr")
+            return (
+                data.get("ozet", "Özet oluşturulamadı."), 
+                data.get("duygu", "Nötr"),
+                data.get("tarafsizlik_skoru", 5),
+                data.get("dogruluk_skoru", 5),
+                data.get("skor_acklamasi", "Skor analizi yapılamadı.")
+            )
         except Exception:
-            return raw_response, "Nötr"
+            return raw_response, "Nötr", 5, 5, "Analiz hatası."
 
-    return "Özet oluşturulamadı. API Keylerinizi kontrol edin.", "Nötr"
+    return "Özet oluşturulamadı.", "Nötr", 5, 5, "API Hatası."
 
 
 def habere_soru_sor(haber_metni, soru):
@@ -235,9 +253,12 @@ def index():
     baslik = None
     gorsel_url = None
     haber_metni = None
+    metin = None
+    okuma_suresi = None
     haberler = []
     
     arama_kelimesi = request.args.get('query', '').strip()
+
     
     if arama_kelimesi:
         haberler = haber_ara(arama_kelimesi)
@@ -249,16 +270,19 @@ def index():
             url = request.form.get('url', '').strip()
             format_secimi = request.form.get('format', 'maddeli')
             hedef_dil = request.form.get('dil', 'tr')
-            
+
             if url:
                 baslik, gorsel_url, metin = haber_metni_cek(url)
                 if metin and len(metin) > 50:
                     haber_metni = metin
-                    ozet, duygu = ozetle_hybrid(metin, format_secimi, hedef_dil)
+                    ozet, duygu, tarafsizlik, dogruluk, skor_aciklamasi = ozetle_hybrid(metin, format_secimi, hedef_dil)
+                    okuma_suresi = okuma_suresi_hesapla(metin)
+                
                 else:
                     ozet = "Haber içeriği çekilemedi veya metin çok kısa. Lütfen başka bir haber linki deneyin."
 
-    return render_template('index.html', ozet=ozet, duygu=duygu, baslik=baslik, gorsel_url=gorsel_url, haber_metni=haber_metni, haberler=haberler, arama_kelimesi=arama_kelimesi)
+
+    return render_template('index.html', ozet=ozet, duygu=duygu, baslik=baslik, gorsel_url=gorsel_url, haber_metni=haber_metni, haberler=haberler, arama_kelimesi=arama_kelimesi, okuma_suresi=okuma_suresi, tarafsizlik=tarafsizlik, dogruluk=dogruluk, skor_aciklamasi=skor_aciklamasi)
 
 
 @app.route('/seslendir', methods=['POST'])
