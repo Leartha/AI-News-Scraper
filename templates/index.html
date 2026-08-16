@@ -4,38 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Haber Analisti & Özetleyici</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            darkMode: 'class',
-        }
+        tailwind.config = { darkMode: 'class' }
     </script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen transition-colors duration-300 font-sans pb-20 overflow-x-hidden">
 
-    <!-- 1. EN ÜST KATMAN: SABİT DARK MODE BUTONU (SAĞ ÜST) -->
-    <button 
-        id="theme-toggle" 
-        type="button" 
-        title="Temayı Değiştir"
-        class="fixed top-6 right-6 z-[9999] w-12 h-12 rounded-full bg-slate-800 text-slate-100 border border-slate-700 shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer"
-    >
+    <!-- SABİT TEMA BUTONU -->
+    <button id="theme-toggle" type="button" title="Temayı Değiştir" class="fixed top-6 right-6 z-[9999] w-12 h-12 rounded-full bg-slate-800 text-slate-100 border border-slate-700 shadow-2xl hover:scale-110 active:scale-95 transition-all flex items-center justify-center cursor-pointer">
         <span id="theme-toggle-dark-icon" class="text-xl leading-none">🌙</span>
         <span id="theme-toggle-light-icon" class="text-xl leading-none hidden">☀️</span>
     </button>
 
-    <!-- 2. EN ÜST KATMAN: KOLEKSİYON BUTONU (SOL ÜST) -->
-    <button 
-        onclick="toggleCollectionDrawer()" 
-        class="fixed top-6 left-6 z-[9999] px-4 py-2.5 rounded-full bg-slate-800 text-slate-100 border border-slate-700 shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2 text-sm font-semibold cursor-pointer"
-    >
+    <!-- KOLEKSİYON BUTONU -->
+    <button onclick="toggleCollectionDrawer()" class="fixed top-6 left-6 z-[9999] px-4 py-2.5 rounded-full bg-slate-800 text-slate-100 border border-slate-700 shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2 text-sm font-semibold cursor-pointer">
         <span>📜</span>
         <span class="hidden sm:inline">Koleksiyonum</span>
         <span id="collection-count" class="bg-emerald-500 text-slate-950 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
     </button>
 
-    <!-- 3. SOL AÇILIR YAN MENÜ (KOLEKSİYON DRAWER) -->
+    <!-- SOL AÇILIR YAN MENÜ (KOLEKSİYON) -->
     <div id="drawer-overlay" onclick="toggleCollectionDrawer()" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[10000] hidden transition-opacity"></div>
 
     <div id="collection-drawer" class="fixed top-0 left-0 h-full w-80 md:w-96 bg-slate-900 z-[10001] shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col border-r border-slate-800">
@@ -58,7 +47,6 @@
     <!-- ANA İÇERİK -->
     <div class="max-w-4xl mx-auto px-4 pt-24">
         
-        <!-- BAŞLIK -->
         <div class="text-center mb-8">
             <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
                 AI Haber Analisti
@@ -66,18 +54,16 @@
             <p class="text-slate-400 mt-2 text-sm md:text-base">Haberleri anında tara, özetle, dinle ve sorular sor.</p>
         </div>
 
-        <!-- ARAMA VE LINK GİRİŞ FORMU -->
+        <!-- ARAMA VE ARAYÜZ FORMU -->
         <div class="bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800 mb-8 space-y-6 overflow-hidden">
             
-            <!-- Arama Kutusu -->
             <form action="/" method="GET" class="flex gap-2">
                 <input type="text" name="query" value="{{ arama_kelimesi or '' }}" placeholder="Gündemdeki bir konuyu veya haberi aratın..." class="flex-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-100">
-                <button type="submit" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition text-sm flex items-center gap-2 shrink-0">
+                <button type="submit" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition text-sm flex items-center gap-2 shrink-0 cursor-pointer">
                     <span>🔍</span> Ara
                 </button>
             </form>
 
-            <!-- ORTAK FORMAT VE DİL SEÇİM PANELİ -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                 <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Özet Formatı</label>
@@ -100,7 +86,6 @@
                 </div>
             </div>
 
-            <!-- Arama Sonuçları Listesi -->
             {% if haberler %}
             <div class="space-y-3 pt-4 border-t border-slate-800">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Bulunan Haberler</h3>
@@ -126,61 +111,93 @@
             </div>
             {% endif %}
 
-            <!-- Doğrudan URL ile Özetleme Formu -->
             <form id="url-form" action="/" method="POST" class="space-y-4 pt-4 border-t border-slate-800">
                 <input type="hidden" name="islem_turu" value="ozetle">
-                
                 <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Veya Doğrudan Haber Linki (URL)</label>
                     <input type="url" name="url" placeholder="https://www.haber.com/detay-123" class="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-100">
                 </div>
-
-                <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl shadow-lg transition">
+                <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl shadow-lg transition cursor-pointer">
                     Haberi Yapay Zekayla Analiz Et
                 </button>
             </form>
         </div>
 
-        <!-- ÖZET SONUÇ KARTI -->
-        {% if ozet %}
-        <div class="bg-slate-900 p-6 md:p-8 rounded-2xl shadow-2xl border border-slate-800 space-y-6">
+        <!-- ÖZET SONUÇ KARTI (GÖRÜNÜR / GİZLENEBİLİR CONTAINER) -->
+        <div id="summary-card-container" class="{% if not ozet %}hidden{% endif %} bg-slate-900 p-6 md:p-8 rounded-2xl shadow-2xl border border-slate-800 space-y-6 mb-12">
             
-            <!-- HABER BAŞLIĞI VE DUYGU ROZETİ -->
-            {% if baslik %}
             <div class="flex items-center justify-between gap-4 pb-4 border-b border-slate-800">
                 <h2 id="current-baslik" class="text-xl md:text-2xl font-bold text-slate-100 leading-snug">
-                    {{ baslik }}
+                    {{ baslik or '' }}
                 </h2>
 
-                {% if duygu %}
                 <div class="shrink-0">
                     <span id="current-duygu" class="px-3.5 py-1.5 rounded-full text-xs font-black shadow-sm border flex items-center gap-1.5 uppercase tracking-wide
                         {% if duygu == 'Pozitif' %} bg-emerald-500/10 text-emerald-400 border-emerald-500/30
                         {% elif duygu == 'Negatif' %} bg-rose-500/10 text-rose-400 border-rose-500/30
                         {% else %} bg-slate-500/10 text-slate-400 border-slate-500/30 {% endif %}">
-                        {% if duygu == 'Pozitif' %}😊{% elif duygu == 'Negatif' %}😡{% else %}😐{% endif %}
-                        <span>{{ duygu }}</span>
+                        <span id="duygu-emoji">{% if duygu == 'Pozitif' %}😊{% elif duygu == 'Negatif' %}😡{% else %}😐{% endif %}</span>
+                        <span id="duygu-text">{{ duygu or 'Nötr' }}</span>
                     </span>
                 </div>
-                {% endif %}
             </div>
-            {% endif %}
 
-            <!-- Haber Görseli (Varsa) -->
-            {% if gorsel_url %}
-            <img src="{{ gorsel_url }}" alt="Haber Görseli" class="w-full h-64 object-cover rounded-xl shadow-md">
-            {% endif %}
+            
+        <!-- TARAFSIZLIK VE DOĞRULUK SKORLARI -->
+        {% if tarafsizlik is not none and dogruluk is not none %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-slate-800/50 border border-slate-700/80 rounded-xl">
+            <div class="space-y-1">
+                <div class="flex items-center justify-between text-xs font-bold">
+                    <span class="text-slate-400">⚖️ Tarafsızlık Skoru</span>
+                    <span class="text-indigo-400 font-mono text-sm">{{ tarafsizlik }}/10</span>
+                </div>
+                <div class="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
+                    <div class="score-progress bg-indigo-500 h-full rounded-full transition-all duration-500" data-percent="{{ (tarafsizlik | int) * 10 }}"></div>
+                </div>
+            </div>
 
-            <!-- METİN İÇERİĞİ (GİZLİ VE GÖRÜNÜR) -->
-            <div id="raw-ozet-data" class="hidden">{{ ozet }}</div>
+            <div class="space-y-1">
+                <div class="flex items-center justify-between text-xs font-bold">
+                    <span class="text-slate-400">🎯 Doğruluk/Güvenilirlik Skoru</span>
+                    <span class="text-emerald-400 font-mono text-sm">{{ dogruluk }}/10</span>
+                </div>
+                <div class="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
+                    <div class="score-progress bg-emerald-500 h-full rounded-full transition-all duration-500" data-percent="{{ (dogruluk | int) * 10 }}"></div>
+                </div>
+            </div>
+
+            {% if skor_aciklamasi %}
+            <p class="sm:col-span-2 text-[11px] text-slate-400 italic pt-1 border-t border-slate-700/40">
+                💡 <strong>Analiz:</strong> {{ skor_aciklamasi }}
+            </p>
+            {% endif %}
+        </div>
+
+        <script>
+            document.querySelectorAll('.score-progress').forEach(el => {
+                const percent = el.getAttribute('data-percent');
+                if (percent) el.style.width = percent + '%';
+            });
+        </script>
+        {% endif %}
+
+
+
+
+
+            <!-- Görsel -->
+            <img id="current-gorsel" src="{{ gorsel_url or '' }}" alt="Haber Görseli" class="{% if not gorsel_url %}hidden{% endif %} w-full h-64 object-cover rounded-xl shadow-md">
+
+            <!-- Veri Tutucular -->
+            <div id="raw-ozet-data" class="hidden">{{ ozet or '' }}</div>
             <div id="raw-haber-metni" class="hidden">{{ haber_metni or '' }}</div>
 
-            <!-- Özet Metni Görünür Alanı -->
-            <div class="prose dark:prose-invert max-w-none text-slate-300 leading-relaxed whitespace-pre-line text-base font-medium">
-                {{ ozet }}
+            <!-- Özet Görünüm Alanı -->
+            <div id="display-ozet-text" class="prose dark:prose-invert max-w-none text-slate-300 leading-relaxed whitespace-pre-line text-base font-medium">
+                {{ ozet or '' }}
             </div>
 
-            <!-- EYLEM BUTONLARI & SES PANELİ -->
+            <!-- Aksiyon Butonları -->
             <div class="pt-4 border-t border-slate-800 space-y-4">
                 <div class="flex flex-wrap gap-3 items-center justify-between">
                     <button onclick="sesiOynat()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer">
@@ -192,7 +209,6 @@
                     </button>
                 </div>
 
-                <!-- SES PLAYER & HIZ BUTONLARI -->
                 <div id="audio-panel" class="hidden p-4 bg-slate-800/80 border border-slate-700 rounded-xl space-y-3">
                     <audio id="main-audio-player" controls class="w-full h-10 rounded-lg"></audio>
 
@@ -208,64 +224,60 @@
                 </div>
             </div>
 
-            <!-- CHATBOT: HABERE SORU SOR -->
+            <!-- Chatbot -->
             <div class="mt-8 pt-6 border-t border-slate-800 space-y-4">
                 <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
                     <span>💬</span> Bu Haber Hakkında Soru Sor
                 </h3>
                 <div class="flex gap-2">
                     <input type="text" id="chat-question" placeholder="Örn: Bu olay ne zaman gerçekleşti?" class="flex-1 px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-100">
-                    <button onclick="askQuestion()" class="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm rounded-xl transition">Sor</button>
+                    <button onclick="askQuestion()" class="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm rounded-xl transition cursor-pointer">Sor</button>
                 </div>
                 <div id="chat-response" class="hidden p-4 rounded-xl bg-indigo-950/40 border border-indigo-800/50 text-sm leading-relaxed text-indigo-200"></div>
             </div>
 
         </div>
-        {% endif %}
 
     </div>
 
-    <!-- JAVASCRIPT KODLARI -->
     <script>
-        // ARAMA SONUÇLARINDA VE LINK FORMUNDA SEÇİLİ FORMAT VE DİLİ BİRLEŞTİRME
         function syncOptions(buttonBtn) {
             const form = buttonBtn.closest('form');
             const selectedFormat = document.getElementById('global-format').value;
             const selectedDil = document.getElementById('global-dil').value;
 
-            let formatInput = form.querySelector('.search-format-input');
-            let dilInput = form.querySelector('.search-dil-input');
+            const formatInput = form.querySelector('.search-format-input');
+            const dilInput = form.querySelector('.search-dil-input');
 
             if (formatInput) formatInput.value = selectedFormat;
             if (dilInput) dilInput.value = selectedDil;
-
-            document.getElementById('url-form')?.addEventListener('submit', function(e) {
-                const selectedFormat = document.getElementById('global-format').value;
-                const selectedDil = document.getElementById('global-dil').value;
-
-                // Gizli inputlar yoksa oluşturup forma ekle
-                let formatInput = this.querySelector('input[name="format"]');
-                let dilInput = this.querySelector('input[name="dil"]');
-
-                if (!formatInput) {
-                    formatInput = document.createElement('input');
-                    formatInput.type = 'hidden';
-                    formatInput.name = 'format';
-                    this.appendChild(formatInput);
-                }
-                if (!dilInput) {
-                    dilInput = document.createElement('input');
-                    dilInput.type = 'hidden';
-                    dilInput.name = 'dil';
-                    this.appendChild(dilInput);
-                }
-
-                formatInput.value = selectedFormat;
-                dilInput.value = selectedDil;
-            });
         }
 
-        // DARK MODE MANTIĞI
+        document.getElementById('url-form')?.addEventListener('submit', function() {
+            const selectedFormat = document.getElementById('global-format').value;
+            const selectedDil = document.getElementById('global-dil').value;
+
+            let formatInput = this.querySelector('input[name="format"]');
+            let dilInput = this.querySelector('input[name="dil"]');
+
+            if (!formatInput) {
+                formatInput = document.createElement('input');
+                formatInput.type = 'hidden';
+                formatInput.name = 'format';
+                this.appendChild(formatInput);
+            }
+            if (!dilInput) {
+                dilInput = document.createElement('input');
+                dilInput.type = 'hidden';
+                dilInput.name = 'dil';
+                this.appendChild(dilInput);
+            }
+
+            formatInput.value = selectedFormat;
+            dilInput.value = selectedDil;
+        });
+
+        // TEMA
         (function() {
             const themeToggleBtn = document.getElementById('theme-toggle');
             const darkIcon = document.getElementById('theme-toggle-dark-icon');
@@ -369,7 +381,7 @@
             }
         }
 
-        // KOLEKSİYON
+        // KOLEKSİYON YÖNETİMİ
         function toggleCollectionDrawer() {
             document.getElementById('collection-drawer').classList.toggle('-translate-x-full');
             document.getElementById('drawer-overlay').classList.toggle('hidden');
@@ -383,7 +395,9 @@
         function saveCurrentSummary() {
             const baslik = document.getElementById('current-baslik')?.innerText || 'Haber Özeti';
             const ozet = document.getElementById('raw-ozet-data')?.innerText || '';
-            const duygu = document.getElementById('current-duygu')?.innerText.trim() || 'Nötr';
+            const duygu = document.getElementById('duygu-text')?.innerText.trim() || 'Nötr';
+            const gorselUrl = document.getElementById('current-gorsel')?.src || '';
+            const haberMetni = document.getElementById('raw-haber-metni')?.innerText || '';
 
             if (!ozet) return;
 
@@ -398,6 +412,8 @@
                 baslik: baslik,
                 ozet: ozet,
                 duygu: duygu,
+                gorsel_url: gorselUrl,
+                haber_metni: haberMetni,
                 tarih: new Date().toLocaleDateString('tr-TR')
             });
 
@@ -406,7 +422,49 @@
             alert("Özet koleksiyonunuza eklendi! ⭐");
         }
 
-        function deleteCollectionItem(id) {
+        // KOLEKSİYONDAN TIKLANDIĞINDA SAYFAYA YÜKLEME
+        function loadSummaryFromCollection(id) {
+            const collection = getCollection();
+            const item = collection.find(x => x.id === id);
+
+            if (!item) return;
+
+            // Elementleri güncelle
+            document.getElementById('current-baslik').innerText = item.baslik;
+            document.getElementById('duygu-text').innerText = item.duygu;
+            
+            const emojiSpan = document.getElementById('duygu-emoji');
+            if (emojiSpan) {
+                emojiSpan.innerText = item.duygu === 'Pozitif' ? '😊' : (item.duygu === 'Negatif' ? '😡' : '😐');
+            }
+
+            document.getElementById('raw-ozet-data').innerText = item.ozet;
+            document.getElementById('display-ozet-text').innerText = item.ozet;
+            document.getElementById('raw-haber-metni').innerText = item.haber_metni || '';
+
+            const gorselImg = document.getElementById('current-gorsel');
+            if (item.gorsel_url && item.gorsel_url !== window.location.href) {
+                gorselImg.src = item.gorsel_url;
+                gorselImg.classList.remove('hidden');
+            } else {
+                gorselImg.classList.add('hidden');
+            }
+
+            // Temizlik
+            document.getElementById('audio-panel').classList.add('hidden');
+            document.getElementById('chat-response').classList.add('hidden');
+            document.getElementById('chat-question').value = '';
+
+            // Kartı Görünür Yap ve Odaklan
+            const container = document.getElementById('summary-card-container');
+            container.classList.remove('hidden');
+
+            toggleCollectionDrawer();
+            container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function deleteCollectionItem(id, event) {
+            event.stopPropagation();
             let collection = getCollection().filter(item => item.id !== id);
             localStorage.setItem('news_collection', JSON.stringify(collection));
             renderCollection();
@@ -437,12 +495,12 @@
             }
 
             listContainer.innerHTML = collection.map(item => `
-                <div class="p-3.5 bg-slate-800/60 rounded-xl border border-slate-700 space-y-2">
+                <div onclick="loadSummaryFromCollection(${item.id})" class="p-3.5 bg-slate-800/60 hover:bg-slate-800 border border-slate-700/80 hover:border-indigo-500/50 rounded-xl space-y-2 cursor-pointer transition group">
                     <div class="flex items-start justify-between gap-2">
-                        <h4 class="font-bold text-xs text-slate-200 line-clamp-2">${item.baslik}</h4>
-                        <button onclick="deleteCollectionItem(${item.id})" class="text-slate-400 hover:text-rose-500 font-bold">&times;</button>
+                        <h4 class="font-bold text-xs text-slate-200 group-hover:text-indigo-400 transition line-clamp-2">${item.baslik}</h4>
+                        <button onclick="deleteCollectionItem(${item.id}, event)" class="text-slate-400 hover:text-rose-500 font-bold p-1">&times;</button>
                     </div>
-                    <p class="text-xs text-slate-300 line-clamp-3">${item.ozet}</p>
+                    <p class="text-xs text-slate-300 line-clamp-2 font-normal">${item.ozet}</p>
                     <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-700/50">
                         <span>${item.tarih}</span>
                         <span class="font-semibold text-emerald-400">${item.duygu}</span>
